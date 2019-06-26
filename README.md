@@ -1,8 +1,11 @@
 ---
-author: "Nicolas Servant"
+author: "Nicolas Servant; Pacome Prompsy"
 date: "01st Octobre 2018"
 output: html_document
 ---
+
+# scChIPseq_DataEngineering
+This pipeline is dedicated to create single-cell count matrix from paired-end raw fastQ files coming from single-cell ChIP-seq experiments.
 
 # single-cell ChIP-seq pipeline
 # v0.0.2
@@ -25,3 +28,4 @@ OPTIONS
 ```
 
 
+=======
