@@ -1,0 +1,65 @@
+custom_data:
+
+    scChIPseq_general_table:
+        id: 'scChIPseq_general_table'
+        file_format: 'csv'
+        section_name: 'General Stats'
+        plot_type: 'table'
+        pconfig:
+            id: 'scChIPseq_barcode_plot'
+            title: 'Barcode Mapping'
+            cpswitch_counts_label': 'Number of Reads'
+        headers:
+            '%Aligned':
+                description: '% Aligned'
+                format: '{:,.0f}'
+                max: 100
+                min: 0
+                suffix: '%'
+                scale: 'YlGn'
+            '%Aligned_Barcoded':
+                description: '% Aligned and Barcoded'
+                format: '{:,.0f}'
+                max: 100
+                min: 0
+                suffix: '%'
+                scale: 'YlGn'
+            '%Unique_Reads':
+                description: '% Unique Reads'
+                format: '{:,.0f}'
+                max: 100
+                min: 0
+                suffix: '%'
+                scale: 'YlGn'
+            
+    scChIPseq_barcode:
+        id: 'scChIPseq_barcode'
+        file_format: 'csv'
+        description: '{desc}'
+        section_name: 'Barcode Matching'
+        plot_type: 'bargraph'
+        pconfig:
+            id: 'scChIPseq_barcode_plot'
+            title: 'Barcode Mapping'
+            ylab: '# Reads'
+            cpswitch_counts_label': 'Number of Reads'
+
+    scChIPseq_alignments:
+        id: 'scChIPseq_alignments'
+        file_format: 'csv'
+        section_name: Alignment Scores'
+        plot_type: 'bargraph'
+        pconfig:
+            id: 'scChIPseq_alignments_plot'
+            title: 'scChIPseq: Barcode Mapping'
+            ylab: '# Reads'
+            cpswitch_counts_label': 'Number of Reads'
+
+
+sp:
+    scChIPseq_general_table:
+        fn: '*scChIPseq_table.csv'
+    scChIPseq_barcode:
+        fn: '*scChIPseq_barcode.csv'
+    scChIPseq_alignments:
+        fn: '*scChIPseq_alignments.csv'

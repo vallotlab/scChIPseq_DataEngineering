@@ -1,4 +1,35 @@
 ***********************************
+CHANGES IN VERSION 0.0.3.4
+
+NEW FEATURES
+
+   o New handling of CONFIG files (GetConf function) based on EWOK pipeline
+   (https://gitlab.curie.fr/data-analysis/ewok/tree/devel). A file "species_design_configs.csv"
+   contains different combinations of parameters (Genome build/Beads) and user build a custom
+   CONFIG file using ./schip_processing.sh GetConf [options] based on 'CONFIG_TEMPLATE' in a 'safer' way.
+   User can override some parameters (just target bed for now) to customize safely the pipe.
+
+
+***********************************
+CHANGES IN VERSION 0.0.3.3
+
+NEW FEATURES
+
+   o CONFIG option : UNBOUND = TRUE/FALSE - run the pipelines without removing PCR and RT in the addBarcode_rmDup
+   function.
+
+   o Downstream analysis using a dedicated R pipeline. (https://gitlab.curie.fr/Vallot_lab/R_automated_scripts/blob/master/scChIPseq_analysis/R_scChIP_seq_analysis.R)
+   This creates a default-parameter analysis of single matrices (QC & filtering, dimension reduction, correlation
+    filtering, unsupervised clustering of cells, [peak calling] (optional), differential analysis, GSEA).
+   
+   CONFIG option for downstream analysis : N_CLUSTER = 3
+                                  MIN_PERCENT_COR = 1 
+                                  MIN_COV = 1000
+
+            
+ 
+
+***********************************
 CHANGES IN VERSION 0.0.3.3
 
 NEW FEATURES

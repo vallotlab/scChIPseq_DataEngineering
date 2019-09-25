@@ -499,10 +499,6 @@ scChIPseq/flagged_PCR_RT_count:
     fn: '*_flagged_rmPCR_RT.count'
 scChIPseq/flagged_PCR_RT_rmDup_count:
     fn: '*_flagged_rmPCR_RT_rmDup.count'
-scChIPseq/count_matrix:
-    fn: '*.tsv'
-scChIPseq/bigwig:
-    fn: '*_rmDup.bw'
 skewer:
     contents: 'maximum error ratio allowed (-r):'
     shared: true

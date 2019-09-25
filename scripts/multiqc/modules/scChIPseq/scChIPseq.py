@@ -9,7 +9,6 @@ import os
 import re
 import pandas as pd
 import subprocess
-import pyBigWig as pyBW
 from multiqc import config
 from multiqc.plots import bargraph
 from multiqc.plots import linegraph
@@ -121,23 +120,7 @@ class MultiqcModule(BaseMultiqcModule):
                     log.debug("Duplicate sample name found! Overwriting: {}".format(s_name))
                 self.scChIPseq_flagged_PCR_RT_rmDup_count[s_name] = count
 
-        # Read in count_matrix
-        self.scChIPseq_count_matrix = dict()
-        for f in self.find_log_files('scChIPseq/count_matrix'):
-            log.info('FOUND THE scChIPseq_count_matrix !')
-            if not f['root']:
-                log.info("is empty")
-                count = pd.read_csv("./" + f['fn'], delim_whitespace=True)
-            else:
-                log.info("is not empty")
-                count = pd.read_csv(f['root'] + "/" + f['fn'], delim_whitespace=True)
-            s_name = f['s_name']
-            if count is not None:
-                if s_name == '':
-                    s_name = self.clean_s_name(os.path.basename(f['root']), os.path.dirname(f['root']))
-                if s_name in self.scChIPseq_count_matrix:
-                    log.debug("Duplicate sample name found! Overwriting: {}".format(s_name))
-                self.scChIPseq_count_matrix[s_name] = count
+
         # Filter to strip out ignored sample names
         self.scChIPseq_data = self.ignore_samples(self.scChIPseq_data)
         #self.scChIPseq_flagged_count = self.ignore_samples(self.scChIPseq_flagged_count)
@@ -157,22 +140,38 @@ class MultiqcModule(BaseMultiqcModule):
             log.info("Found {} reports".format(len(self.scChIPseq_flagged_PCR_RT_count)))
         if len(self.scChIPseq_flagged_PCR_RT_rmDup_count) > 0:
             log.info("Found {} reports".format(len(self.scChIPseq_flagged_PCR_RT_rmDup_count)))
-        if len(self.scChIPseq_count_matrix) > 0:
-            log.info("Found {} reports".format(len(self.scChIPseq_flagged_PCR_RT_rmDup_count)))
 
         if len(self.scChIPseq_data) > 0:
             # Write parsed report data to a file
             self.write_data_file(self.scChIPseq_data, 'multiqc_scChIPseq')
             # Basic Stats Table
             self.scChIPseq_stats_table()
-
-
-            # Barcode matching bar plot
-            self.add_section(
-                name='Barcode Matching',
-                anchor='scChIPseq_barcode',
-                plot=self.scChIPseq_barcode_chart()
-            )
+            
+            if len(self.scChIPseq_flagged_PCR_RT_rmDup_count) > 0:
+              
+              for keys in self.scChIPseq_flagged_PCR_RT_rmDup_count.keys():
+                flagged_PCR_RT_rmDup = pd.Series(self.scChIPseq_flagged_PCR_RT_rmDup_count[keys]['count']).value_counts()
+                flagged_PCR_RT_rmDup = pd.DataFrame(data=[flagged_PCR_RT_rmDup.values.tolist(), flagged_PCR_RT_rmDup.keys().to_list()])
+                flagged_PCR_RT_rmDup = flagged_PCR_RT_rmDup.transpose()
+                flagged_PCR_RT_rmDup.columns = ['Barcodes_Number', 'Reads_per_barcode']
+                
+              desc = "**Number of barcodes with more than 100 reads: **" + str(sum(flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup['Reads_per_barcode']>=100].Barcodes_Number)) +"<br>"+"**Number of barcodes with more than 500 reads: **" + str(sum(flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup['Reads_per_barcode']>=500].Barcodes_Number)) +"<br>"+ "**Number of barcodes with more than 1000 reads: **" + str(sum(flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup['Reads_per_barcode']>=1000].Barcodes_Number)) + "<br>"+ "**Number of barcodes with more than 1500 reads: **" + str(sum(flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup['Reads_per_barcode']>=1500].Barcodes_Number))
+              
+              # Barcode matching bar plot
+              self.add_section(
+                  name='Barcode Matching',
+                  anchor='scChIPseq_barcode',
+                  description=desc,
+                  plot=self.scChIPseq_barcode_chart()
+              )
+              
+            else:
+              # Barcode matching bar plot
+              self.add_section(
+                  name='Barcode Matching',
+                  anchor='scChIPseq_barcode',
+                  plot=self.scChIPseq_barcode_chart()
+              )
 
             # Alignment bar plot
             self.add_section (
@@ -180,18 +179,15 @@ class MultiqcModule(BaseMultiqcModule):
                 anchor = 'scChIPseq_alignments',
                 plot = self.scChIPseq_alignment_chart()
             )
-        if len(self.scChIPseq_flagged_count) > 0:
-            self.scChIPseq_flagged_coverage_chart()
-
-        if len(self.scChIPseq_flagged_PCR_count) > 0:
-            self.scChIPseq_flagged_PCR_coverage_chart()
-        if len(self.scChIPseq_flagged_PCR_RT_count) > 0:
-            self.scChIPseq_flagged_PCR_RT_coverage_chart()
-        if len(self.scChIPseq_flagged_PCR_RT_rmDup_count) > 0:
-            self.scChIPseq_flagged_PCR_RT_rmDup_coverage_chart()
-        if len(self.scChIPseq_count_matrix) > 0:
-            self.scChIPseq_count_matrix_region_coverage_chart()
-            self.scChIPseq_count_matrix_cell_coverage_chart()
+            
+        # if len(self.scChIPseq_flagged_count) > 0:
+        #     self.scChIPseq_flagged_coverage_chart()
+        # if len(self.scChIPseq_flagged_PCR_count) > 0:
+        #     self.scChIPseq_flagged_PCR_coverage_chart()
+        # if len(self.scChIPseq_flagged_PCR_RT_count) > 0:
+        #     self.scChIPseq_flagged_PCR_RT_coverage_chart()
+        # if len(self.scChIPseq_flagged_PCR_RT_rmDup_count) > 0:
+        #     self.scChIPseq_flagged_PCR_RT_rmDup_coverage_chart()
 
     def parse_scChIPseq_report (self, raw_data):
         """ Parse the combined scChIPseq log file. """
@@ -345,321 +341,218 @@ class MultiqcModule(BaseMultiqcModule):
             'ylab': '# Reads',
             'cpswitch_counts_label': 'Number of Reads'
         }
+        
         return bargraph.plot(self.scChIPseq_data, keys, pconfig)
 
-    def scChIPseq_flagged_coverage_chart (self):
-        """ Make the plot showing alignment rates """
-
-        for keys in self.scChIPseq_flagged_count.keys():
-            flagged =  pd.Series(self.scChIPseq_flagged_count[keys]['count']).value_counts()
-            flagged = pd.DataFrame(data=[flagged.values.tolist(), flagged.keys().to_list()])
-            flagged=flagged.transpose()
-            flagged.columns = ['Barcodes_Number', 'Reads_per_barcode']
-            flagged = flagged[flagged.Reads_per_barcode >= 500]
-
-            max_bins=math.ceil(flagged['Reads_per_barcode'].quantile(0.95))
-            step= math.ceil((max_bins-500)/40)
-            bins = list(range(500,max_bins,step))
-            flagged_dict = dict()
-            for index, row in flagged.iterrows():
-                for i in bins:
-                    if row['Reads_per_barcode'] >= i and row['Reads_per_barcode'] < (i + step):
-                        if i not in flagged_dict:
-                            flagged_dict[i] = int(row['Barcodes_Number'])
-                        else:
-                            flagged_dict[i] = flagged_dict[i] + int(row['Barcodes_Number'])
-
-                if row['Reads_per_barcode'] >= (max_bins + step):
-                    if (max_bins + step) not in flagged_dict:
-                        flagged_dict[max_bins + step] = int(row['Barcodes_Number'])
-                    else:
-                        flagged_dict[max_bins + step] = flagged_dict[max_bins + step] + int(row['Barcodes_Number'])
-            data = dict()
-            data[keys] = flagged_dict
-            data_color = dict()
-            data_color[keys] = "#15a594"
-            log.info(data)
-
-        #log.info(dict(list(data.items())[0:2]))
-        # Config for the plot
-        pconfig = {
-            'id': 'scChIPseq_flagged_coverage_plot',
-            'title': "Read distribution across barcodes before duplicate removals",
-            'ylab': '# Barcodes',
-            'xlab': '# Reads per barcode',
-            'cpswitch_counts_label': 'Number of Reads',
-            'colors': data_color,
-            'smooth_points': 100,  # Supply a number to limit number of points / smooth data
-            'smooth_points_sumcounts': True,
-        }
-        desc = "**Number of barcodes with more than 500 reads: **" + str(sum(flagged[flagged['Reads_per_barcode']>=500].Barcodes_Number)) +"<br>"+ "**Number of barcodes with more than 1000 reads: **" + str(sum(flagged[flagged['Reads_per_barcode']>=1000].Barcodes_Number)) + "<br>"+ "**Number of barcodes with more than 1500 reads: **" + str(sum(flagged[flagged['Reads_per_barcode']>=1500].Barcodes_Number))
-        self.add_section(
-            name='Read distribution across barcodes before duplicate removal',
-            anchor='scChIPseq_coverage_flagged',
-            description=desc,
-            plot=linegraph.plot(data, pconfig)
-        )
-
-    def scChIPseq_flagged_PCR_coverage_chart (self):
-        """ Make the plot showing alignment rates """
-
-        for keys in self.scChIPseq_flagged_PCR_count.keys():
-            flagged_PCR = pd.Series(self.scChIPseq_flagged_PCR_count[keys]['count']).value_counts()
-            flagged_PCR = pd.DataFrame(data=[flagged_PCR.values.tolist(), flagged_PCR.keys().to_list()])
-            flagged_PCR = flagged_PCR.transpose()
-            flagged_PCR.columns = ['Barcodes_Number', 'Reads_per_barcode']
-            flagged_PCR = flagged_PCR[flagged_PCR.Reads_per_barcode >= 500]
-
-            max_bins=math.ceil(flagged_PCR['Reads_per_barcode'].quantile(0.95))
-            step= math.ceil((max_bins-500)/40)
-            bins = list(range(500,max_bins,step))
-            flagged_PCR_dict = dict()
-            for index, row in flagged_PCR.iterrows():
-                for i in bins:
-                    if row['Reads_per_barcode'] >= i and row['Reads_per_barcode'] < (i + step):
-                        if i not in flagged_PCR_dict:
-                            flagged_PCR_dict[i] = int(row['Barcodes_Number'])
-                        else:
-                            flagged_PCR_dict[i] = flagged_PCR_dict[i] + int(row['Barcodes_Number'])
-
-                if row['Reads_per_barcode'] >= (max_bins + step):
-                    if (max_bins + step) not in flagged_PCR_dict:
-                        flagged_PCR_dict[max_bins + step] = int(row['Barcodes_Number'])
-                    else:
-                        flagged_PCR_dict[max_bins + step] = flagged_PCR_dict[max_bins + step] + int(row['Barcodes_Number'])
-            data = dict()
-            data[keys] = flagged_PCR_dict
-            data_color=dict()
-            data_color[keys]="#4914e8"
-            log.info(data)
-
-        #log.info(dict(list(data.items())[0:2]))
-        # Config for the plot
-        pconfig = {
-            'id': 'scChIPseq_flagged_PCR_coverage_plot',
-            'title': "Barcodes distribution across reads after PCR duplicate removals\nNumber of barcodes: "+str(sum(flagged_PCR['Barcodes_Number'])),
-            'ylab': '# Barcodes',
-            'xlab': '# Reads per barcode',
-            'cpswitch_counts_label': 'Number of Reads',
-            'colors': data_color,
-            'smooth_points': 100,  # Supply a number to limit number of points / smooth data
-            'smooth_points_sumcounts': True,
-        }
-        desc = "**Number of barcodes with more than 500 reads: **" + str(sum(flagged_PCR[flagged_PCR['Reads_per_barcode']>=500].Barcodes_Number)) +"<br>"+ "**Number of barcodes with more than 1000 reads: **" + str(sum(flagged_PCR[flagged_PCR['Reads_per_barcode']>=1000].Barcodes_Number)) + "<br>"+ "**Number of barcodes with more than 1500 reads: **" + str(sum(flagged_PCR[flagged_PCR['Reads_per_barcode']>=1500].Barcodes_Number))
-        self.add_section(
-            name='Barcodes distribution across reads after PCR duplicate removal',
-            anchor='scChIPseq_coverage_flagged_PCR',
-            description=desc,
-            plot=linegraph.plot(data, pconfig)
-        )
-
-    def scChIPseq_flagged_PCR_RT_coverage_chart (self):
-        """ Make the plot showing alignment rates """
-
-        for keys in self.scChIPseq_flagged_PCR_RT_count.keys():
-            flagged_PCR_RT = pd.Series(self.scChIPseq_flagged_PCR_RT_count[keys]['count']).value_counts()
-            flagged_PCR_RT = pd.DataFrame(data=[flagged_PCR_RT.values.tolist(), flagged_PCR_RT.keys().to_list()])
-            flagged_PCR_RT = flagged_PCR_RT.transpose()
-            flagged_PCR_RT.columns = ['Barcodes_Number', 'Reads_per_barcode']
-            flagged_PCR_RT = flagged_PCR_RT[flagged_PCR_RT.Reads_per_barcode >= 500]
-
-            max_bins=math.ceil(flagged_PCR_RT['Reads_per_barcode'].quantile(0.95))
-            step= math.ceil((max_bins-500)/40)
-            bins = list(range(500,max_bins,step))
-            flagged_PCR_RT_dict = dict()
-            for index, row in flagged_PCR_RT.iterrows():
-                for i in bins:
-                    if row['Reads_per_barcode'] >= i and row['Reads_per_barcode'] < (i + step):
-                        if i not in flagged_PCR_RT_dict:
-                            flagged_PCR_RT_dict[i] = int(row['Barcodes_Number'])
-                        else:
-                            flagged_PCR_RT_dict[i] = flagged_PCR_RT_dict[i] + int(row['Barcodes_Number'])
-
-                if row['Reads_per_barcode'] >= (max_bins + step):
-                    if (max_bins + step) not in flagged_PCR_RT_dict:
-                        flagged_PCR_RT_dict[max_bins + step] = int(row['Barcodes_Number'])
-                    else:
-                        flagged_PCR_RT_dict[max_bins + step] = flagged_PCR_RT_dict[max_bins + step] + int(row['Barcodes_Number'])
-            data = dict()
-            data[keys]= flagged_PCR_RT_dict
-            data_color = dict()
-            data_color[keys] = "#0c7bd1"
-            log.info(flagged_PCR_RT)
-            log.info(data)
-
-        # Config for the plot
-        pconfig = {
-            'id': 'scChIPseq_flagged_PCR_RT_coverage_plot',
-            'title': "Barcodes distribution across reads after PCR and RT duplicate removals",
-            'ylab': '# Barcodes',
-            'xlab': '# Reads per barcode',
-            'colors': data_color,
-            'cpswitch_counts_label': 'Number of Reads',
-
-        }
-        desc = "**Number of barcodes with more than 500 reads: **" + str(sum(flagged_PCR_RT[flagged_PCR_RT['Reads_per_barcode']>=500].Barcodes_Number)) +"<br>"+ "**Number of barcodes with more than 1000 reads: **" + str(sum(flagged_PCR_RT[flagged_PCR_RT['Reads_per_barcode']>=1000].Barcodes_Number)) + "<br>"+ "**Number of barcodes with more than 1500 reads: **" + str(sum(flagged_PCR_RT[flagged_PCR_RT['Reads_per_barcode']>=1500].Barcodes_Number))
-
-        self.add_section(
-            name='Barcodes distribution across reads after PCR and RT duplicate removal',
-            anchor='scChIPseq_coverage_flagged_PCR_RT',
-            description=desc,
-            plot=linegraph.plot(data, pconfig)
-        )
-    def scChIPseq_flagged_PCR_RT_rmDup_coverage_chart (self):
-        """ Make the plot showing alignment rates """
-
-        for keys in self.scChIPseq_flagged_PCR_RT_rmDup_count.keys():
-            flagged_PCR_RT_rmDup = pd.Series(self.scChIPseq_flagged_PCR_RT_rmDup_count[keys]['count']).value_counts()
-            flagged_PCR_RT_rmDup = pd.DataFrame(data=[flagged_PCR_RT_rmDup.values.tolist(), flagged_PCR_RT_rmDup.keys().to_list()])
-            flagged_PCR_RT_rmDup = flagged_PCR_RT_rmDup.transpose()
-            flagged_PCR_RT_rmDup.columns = ['Barcodes_Number', 'Reads_per_barcode']
-            flagged_PCR_RT_rmDup = flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup.Reads_per_barcode >= 500]
-
-            max_bins=math.ceil(flagged_PCR_RT_rmDup['Reads_per_barcode'].quantile(0.95))
-            step= math.ceil((max_bins-500)/40)
-            bins = list(range(500,max_bins,step))
-            flagged_PCR_RT_rmDup_dict = dict()
-            for index, row in flagged_PCR_RT_rmDup.iterrows():
-                for i in bins:
-                    if row['Reads_per_barcode'] >= i and row['Reads_per_barcode'] < (i + step):
-                        if i not in flagged_PCR_RT_rmDup_dict:
-                            flagged_PCR_RT_rmDup_dict[i] = int(row['Barcodes_Number'])
-                        else:
-                            flagged_PCR_RT_rmDup_dict[i] = flagged_PCR_RT_rmDup_dict[i] + int(row['Barcodes_Number'])
-
-                if row['Reads_per_barcode'] >= (max_bins + step):
-                    if (max_bins + step) not in flagged_PCR_RT_rmDup_dict:
-                        flagged_PCR_RT_rmDup_dict[max_bins + step] = int(row['Barcodes_Number'])
-                    else:
-                        flagged_PCR_RT_rmDup_dict[max_bins + step] = flagged_PCR_RT_rmDup_dict[max_bins + step] + int(row['Barcodes_Number'])
-            data = dict()
-            data[keys]= flagged_PCR_RT_rmDup_dict
-            data_color = dict()
-            data_color[keys] = "#00bf00"
-            log.info(flagged_PCR_RT_rmDup)
-            log.info(data)
-
-        # Config for the plot
-        pconfig = {
-            'id': 'scChIPseq_flagged_PCR_RT_rmDup_coverage_plot',
-            'title': "Barcodes distribution across reads after PCR, RT and window-based duplicate removals",
-            'ylab': '# Barcodes',
-            'xlab': '# Reads per barcode',
-            'colors': data_color,
-            'cpswitch_counts_label': 'Number of Reads',
-
-        }
-        desc = "**Number of barcodes with more than 500 reads: **" + str(sum(flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup['Reads_per_barcode']>=500].Barcodes_Number)) +"<br>"+ "**Number of barcodes with more than 1000 reads: **" + str(sum(flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup['Reads_per_barcode']>=1000].Barcodes_Number)) + "<br>"+ "**Number of barcodes with more than 1500 reads: **" + str(sum(flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup['Reads_per_barcode']>=1500].Barcodes_Number))
-
-        self.add_section(
-            name='Barcode distribution across reads after PCR, RT and window-based duplicate removal',
-            anchor='scChIPseq_coverage_flagged_PCR_RT_rmDup',
-            description=desc,
-            plot=linegraph.plot(data, pconfig)
-        )
-        
-    def scChIPseq_count_matrix_region_coverage_chart (self):
-        """ Make the plot showing alignment rates """
-
-        for keys in self.scChIPseq_count_matrix.keys():
-            count_matrix = self.scChIPseq_count_matrix[keys]
-            log.info(count_matrix.head())
-            count_matrix[count_matrix>=1]=1
-            colsum = count_matrix.sum(axis=1)
-
-            #Distribution by region
-            max_bins=math.ceil(colsum.quantile(0.999))
-            step= math.ceil((max_bins)/40)
-            bins = list(range(0,max_bins,step))
-            regions_dict = dict()
-            for row in colsum:
-                for i in bins:
-                    if row >= i and row < (i + step):
-                        if i not in regions_dict:
-                            regions_dict[i] = int(row)
-                        else:
-                            regions_dict[i] = regions_dict[i] + int(row)
-
-                if row >= (max_bins + step):
-                    if (max_bins + step) not in regions_dict:
-                        regions_dict[max_bins + step] = int(row)
-                    else:
-                        regions_dict[max_bins + step] = regions_dict[max_bins + step] + int(row)
-            data = dict()
-            data[keys]= regions_dict
-            data_color = dict()
-            data_color[keys] = "#00bf00"
-            log.info(regions_dict)
-            log.info(data)
-
-        # Config for the plot
-        pconfig = {
-            'id': 'scChIPseq_count_matrix_region_coverage_plot',
-            'title': "Read distribution across regions",
-            'ylab': '# Reads',
-            'xlab': '# Reads per region',
-            'cpswitch_counts_label': 'Number of Reads',
-
-        }
-        desc = "Read distribution across regions (bins)"
-
-        self.add_section(
-            name='Read distribution across regions',
-            anchor='scChIPseq_region_coverage_count_matrix',
-            description=desc,
-            plot=linegraph.plot(data, pconfig)
-        )
-
-    def scChIPseq_count_matrix_cell_coverage_chart (self):
-        """ Make the plot showing alignment rates """
-
-        for keys in self.scChIPseq_count_matrix.keys():
-            count_matrix = self.scChIPseq_count_matrix[keys]
-            log.info(count_matrix.head())
-            count_matrix[count_matrix>=1]=1
-            rowsum = count_matrix.sum(axis=0)
-
-            #Distribution by region
-            max_bins=math.ceil(rowsum.quantile(0.999))
-            step= math.ceil((max_bins-500)/40)
-            bins = list(range(500,max_bins,step))
-            cells_dict = dict()
-            for row in rowsum:
-                for i in bins:
-                    if row >= i and row < (i + step):
-                        if i not in cells_dict:
-                            cells_dict[i] = int(row)
-                        else:
-                            cells_dict[i] = cells_dict[i] + int(row)
-
-                if row >= (max_bins + step):
-                    if (max_bins + step) not in cells_dict:
-                        cells_dict[max_bins + step] = int(row)
-                    else:
-                        cells_dict[max_bins + step] = cells_dict[max_bins + step] + int(row)
-            data = dict()
-            data[keys]= cells_dict
-            data_color = dict()
-            data_color[keys] = "#00bf00"
-            log.info(cells_dict)
-            log.info(data)
-
-        # Config for the plot
-        pconfig = {
-            'id': 'scChIPseq_count_matrix_cells_coverage_plot',
-            'title': "Read distribution across cells",
-            'ylab': '# Reads',
-            'xlab': '# Reads per cell',
-            'cpswitch_counts_label': 'Number of Reads',
-
-        }
-        desc = "Read distribution across cells (bins)"
-
-        self.add_section(
-            name='Read distribution across cells',
-            anchor='scChIPseq_cell_coverage_count_matrix',
-            description=desc,
-            plot=linegraph.plot(data, pconfig)
-        )
-
+    # def scChIPseq_flagged_coverage_chart (self):
+    #     """ Make the plot showing alignment rates """
+    # 
+    #     for keys in self.scChIPseq_flagged_count.keys():
+    #         flagged =  pd.Series(self.scChIPseq_flagged_count[keys]['count']).value_counts()
+    #         flagged = pd.DataFrame(data=[flagged.values.tolist(), flagged.keys().to_list()])
+    #         flagged=flagged.transpose()
+    #         flagged.columns = ['Barcodes_Number', 'Reads_per_barcode']
+    #         flagged = flagged[flagged.Reads_per_barcode >= 500]
+    # 
+    #         max_bins=math.ceil(flagged['Reads_per_barcode'].quantile(0.95))
+    #         step= math.ceil((max_bins-500)/40)
+    #         bins = list(range(500,max_bins,step))
+    #         flagged_dict = dict()
+    #         for index, row in flagged.iterrows():
+    #             for i in bins:
+    #                 if row['Reads_per_barcode'] >= i and row['Reads_per_barcode'] < (i + step):
+    #                     if i not in flagged_dict:
+    #                         flagged_dict[i] = int(row['Barcodes_Number'])
+    #                     else:
+    #                         flagged_dict[i] = flagged_dict[i] + int(row['Barcodes_Number'])
+    # 
+    #             if row['Reads_per_barcode'] >= (max_bins + step):
+    #                 if (max_bins + step) not in flagged_dict:
+    #                     flagged_dict[max_bins + step] = int(row['Barcodes_Number'])
+    #                 else:
+    #                     flagged_dict[max_bins + step] = flagged_dict[max_bins + step] + int(row['Barcodes_Number'])
+    #         data = dict()
+    #         data[keys] = flagged_dict
+    #         data_color = dict()
+    #         data_color[keys] = "#15a594"
+    #         log.info(data)
+    # 
+    #     #log.info(dict(list(data.items())[0:2]))
+    #     # Config for the plot
+    #     pconfig = {
+    #         'id': 'scChIPseq_flagged_coverage_plot',
+    #         'title': "Read distribution across barcodes before duplicate removals",
+    #         'ylab': '# Barcodes',
+    #         'xlab': '# Reads per barcode',
+    #         'cpswitch_counts_label': 'Number of Reads',
+    #         'colors': data_color,
+    #         'smooth_points': 100,  # Supply a number to limit number of points / smooth data
+    #         'smooth_points_sumcounts': True,
+    #     }
+    #     desc = "**Number of barcodes with more than 500 reads: **" + str(sum(flagged[flagged['Reads_per_barcode']>=500].Barcodes_Number)) +"<br>"+ "**Number of barcodes with more than 1000 reads: **" + str(sum(flagged[flagged['Reads_per_barcode']>=1000].Barcodes_Number)) + "<br>"+ "**Number of barcodes with more than 1500 reads: **" + str(sum(flagged[flagged['Reads_per_barcode']>=1500].Barcodes_Number))
+    #     self.add_section(
+    #         name='Read distribution across barcodes before duplicate removal',
+    #         anchor='scChIPseq_coverage_flagged',
+    #         description=desc,
+    #         plot=linegraph.plot(data, pconfig)
+    #     )
+    # 
+    # def scChIPseq_flagged_PCR_coverage_chart (self):
+    #     """ Make the plot showing alignment rates """
+    # 
+    #     for keys in self.scChIPseq_flagged_PCR_count.keys():
+    #         flagged_PCR = pd.Series(self.scChIPseq_flagged_PCR_count[keys]['count']).value_counts()
+    #         flagged_PCR = pd.DataFrame(data=[flagged_PCR.values.tolist(), flagged_PCR.keys().to_list()])
+    #         flagged_PCR = flagged_PCR.transpose()
+    #         flagged_PCR.columns = ['Barcodes_Number', 'Reads_per_barcode']
+    #         flagged_PCR = flagged_PCR[flagged_PCR.Reads_per_barcode >= 500]
+    # 
+    #         max_bins=math.ceil(flagged_PCR['Reads_per_barcode'].quantile(0.95))
+    #         step= math.ceil((max_bins-500)/40)
+    #         bins = list(range(500,max_bins,step))
+    #         flagged_PCR_dict = dict()
+    #         for index, row in flagged_PCR.iterrows():
+    #             for i in bins:
+    #                 if row['Reads_per_barcode'] >= i and row['Reads_per_barcode'] < (i + step):
+    #                     if i not in flagged_PCR_dict:
+    #                         flagged_PCR_dict[i] = int(row['Barcodes_Number'])
+    #                     else:
+    #                         flagged_PCR_dict[i] = flagged_PCR_dict[i] + int(row['Barcodes_Number'])
+    # 
+    #             if row['Reads_per_barcode'] >= (max_bins + step):
+    #                 if (max_bins + step) not in flagged_PCR_dict:
+    #                     flagged_PCR_dict[max_bins + step] = int(row['Barcodes_Number'])
+    #                 else:
+    #                     flagged_PCR_dict[max_bins + step] = flagged_PCR_dict[max_bins + step] + int(row['Barcodes_Number'])
+    #         data = dict()
+    #         data[keys] = flagged_PCR_dict
+    #         data_color=dict()
+    #         data_color[keys]="#4914e8"
+    #         log.info(data)
+    # 
+    #     #log.info(dict(list(data.items())[0:2]))
+    #     # Config for the plot
+    #     pconfig = {
+    #         'id': 'scChIPseq_flagged_PCR_coverage_plot',
+    #         'title': "Barcodes distribution across reads after PCR duplicate removals\nNumber of barcodes: "+str(sum(flagged_PCR['Barcodes_Number'])),
+    #         'ylab': '# Barcodes',
+    #         'xlab': '# Reads per barcode',
+    #         'cpswitch_counts_label': 'Number of Reads',
+    #         'colors': data_color,
+    #         'smooth_points': 100,  # Supply a number to limit number of points / smooth data
+    #         'smooth_points_sumcounts': True,
+    #     }
+    #     desc = "**Number of barcodes with more than 500 reads: **" + str(sum(flagged_PCR[flagged_PCR['Reads_per_barcode']>=500].Barcodes_Number)) +"<br>"+ "**Number of barcodes with more than 1000 reads: **" + str(sum(flagged_PCR[flagged_PCR['Reads_per_barcode']>=1000].Barcodes_Number)) + "<br>"+ "**Number of barcodes with more than 1500 reads: **" + str(sum(flagged_PCR[flagged_PCR['Reads_per_barcode']>=1500].Barcodes_Number))
+    #     self.add_section(
+    #         name='Barcodes distribution across reads after PCR duplicate removal',
+    #         anchor='scChIPseq_coverage_flagged_PCR',
+    #         description=desc,
+    #         plot=linegraph.plot(data, pconfig)
+    #     )
+    # 
+    # def scChIPseq_flagged_PCR_RT_coverage_chart (self):
+    #     """ Make the plot showing alignment rates """
+    # 
+    #     for keys in self.scChIPseq_flagged_PCR_RT_count.keys():
+    #         flagged_PCR_RT = pd.Series(self.scChIPseq_flagged_PCR_RT_count[keys]['count']).value_counts()
+    #         flagged_PCR_RT = pd.DataFrame(data=[flagged_PCR_RT.values.tolist(), flagged_PCR_RT.keys().to_list()])
+    #         flagged_PCR_RT = flagged_PCR_RT.transpose()
+    #         flagged_PCR_RT.columns = ['Barcodes_Number', 'Reads_per_barcode']
+    #         flagged_PCR_RT = flagged_PCR_RT[flagged_PCR_RT.Reads_per_barcode >= 500]
+    # 
+    #         max_bins=math.ceil(flagged_PCR_RT['Reads_per_barcode'].quantile(0.95))
+    #         step= math.ceil((max_bins-500)/40)
+    #         bins = list(range(500,max_bins,step))
+    #         flagged_PCR_RT_dict = dict()
+    #         for index, row in flagged_PCR_RT.iterrows():
+    #             for i in bins:
+    #                 if row['Reads_per_barcode'] >= i and row['Reads_per_barcode'] < (i + step):
+    #                     if i not in flagged_PCR_RT_dict:
+    #                         flagged_PCR_RT_dict[i] = int(row['Barcodes_Number'])
+    #                     else:
+    #                         flagged_PCR_RT_dict[i] = flagged_PCR_RT_dict[i] + int(row['Barcodes_Number'])
+    # 
+    #             if row['Reads_per_barcode'] >= (max_bins + step):
+    #                 if (max_bins + step) not in flagged_PCR_RT_dict:
+    #                     flagged_PCR_RT_dict[max_bins + step] = int(row['Barcodes_Number'])
+    #                 else:
+    #                     flagged_PCR_RT_dict[max_bins + step] = flagged_PCR_RT_dict[max_bins + step] + int(row['Barcodes_Number'])
+    #         data = dict()
+    #         data[keys]= flagged_PCR_RT_dict
+    #         data_color = dict()
+    #         data_color[keys] = "#0c7bd1"
+    #         log.info(flagged_PCR_RT)
+    #         log.info(data)
+    # 
+    #     # Config for the plot
+    #     pconfig = {
+    #         'id': 'scChIPseq_flagged_PCR_RT_coverage_plot',
+    #         'title': "Barcodes distribution across reads after PCR and RT duplicate removals",
+    #         'ylab': '# Barcodes',
+    #         'xlab': '# Reads per barcode',
+    #         'colors': data_color,
+    #         'cpswitch_counts_label': 'Number of Reads',
+    # 
+    #     }
+    #     desc = "**Number of barcodes with more than 500 reads: **" + str(sum(flagged_PCR_RT[flagged_PCR_RT['Reads_per_barcode']>=500].Barcodes_Number)) +"<br>"+ "**Number of barcodes with more than 1000 reads: **" + str(sum(flagged_PCR_RT[flagged_PCR_RT['Reads_per_barcode']>=1000].Barcodes_Number)) + "<br>"+ "**Number of barcodes with more than 1500 reads: **" + str(sum(flagged_PCR_RT[flagged_PCR_RT['Reads_per_barcode']>=1500].Barcodes_Number))
+    # 
+    #     self.add_section(
+    #         name='Barcodes distribution across reads after PCR and RT duplicate removal',
+    #         anchor='scChIPseq_coverage_flagged_PCR_RT',
+    #         description=desc,
+    #         plot=linegraph.plot(data, pconfig)
+    #     )
+    # def scChIPseq_flagged_PCR_RT_rmDup_coverage_chart (self):
+    #     """ Make the plot showing alignment rates """
+    # 
+    #     for keys in self.scChIPseq_flagged_PCR_RT_rmDup_count.keys():
+    #         flagged_PCR_RT_rmDup = pd.Series(self.scChIPseq_flagged_PCR_RT_rmDup_count[keys]['count']).value_counts()
+    #         flagged_PCR_RT_rmDup = pd.DataFrame(data=[flagged_PCR_RT_rmDup.values.tolist(), flagged_PCR_RT_rmDup.keys().to_list()])
+    #         flagged_PCR_RT_rmDup = flagged_PCR_RT_rmDup.transpose()
+    #         flagged_PCR_RT_rmDup.columns = ['Barcodes_Number', 'Reads_per_barcode']
+    #         flagged_PCR_RT_rmDup = flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup.Reads_per_barcode >= 500]
+    # 
+    #         max_bins=math.ceil(flagged_PCR_RT_rmDup['Reads_per_barcode'].quantile(0.95))
+    #         step= math.ceil((max_bins-500)/40)
+    #         bins = list(range(500,max_bins,step))
+    #         flagged_PCR_RT_rmDup_dict = dict()
+    #         for index, row in flagged_PCR_RT_rmDup.iterrows():
+    #             for i in bins:
+    #                 if row['Reads_per_barcode'] >= i and row['Reads_per_barcode'] < (i + step):
+    #                     if i not in flagged_PCR_RT_rmDup_dict:
+    #                         flagged_PCR_RT_rmDup_dict[i] = int(row['Barcodes_Number'])
+    #                     else:
+    #                         flagged_PCR_RT_rmDup_dict[i] = flagged_PCR_RT_rmDup_dict[i] + int(row['Barcodes_Number'])
+    # 
+    #             if row['Reads_per_barcode'] >= (max_bins + step):
+    #                 if (max_bins + step) not in flagged_PCR_RT_rmDup_dict:
+    #                     flagged_PCR_RT_rmDup_dict[max_bins + step] = int(row['Barcodes_Number'])
+    #                 else:
+    #                     flagged_PCR_RT_rmDup_dict[max_bins + step] = flagged_PCR_RT_rmDup_dict[max_bins + step] + int(row['Barcodes_Number'])
+    #         data = dict()
+    #         data[keys]= flagged_PCR_RT_rmDup_dict
+    #         data_color = dict()
+    #         data_color[keys] = "#00bf00"
+    #         log.info(flagged_PCR_RT_rmDup)
+    #         log.info(data)
+    # 
+    #     # Config for the plot
+    #     pconfig = {
+    #         'id': 'scChIPseq_flagged_PCR_RT_rmDup_coverage_plot',
+    #         'title': "Barcodes distribution across reads after PCR, RT and window-based duplicate removals",
+    #         'ylab': '# Barcodes',
+    #         'xlab': '# Reads per barcode',
+    #         'colors': data_color,
+    #         'cpswitch_counts_label': 'Number of Reads',
+    # 
+    #     }
+    #     desc = "**Number of barcodes with more than 500 reads: **" + str(sum(flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup['Reads_per_barcode']>=500].Barcodes_Number)) +"<br>"+ "**Number of barcodes with more than 1000 reads: **" + str(sum(flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup['Reads_per_barcode']>=1000].Barcodes_Number)) + "<br>"+ "**Number of barcodes with more than 1500 reads: **" + str(sum(flagged_PCR_RT_rmDup[flagged_PCR_RT_rmDup['Reads_per_barcode']>=1500].Barcodes_Number))
+    # 
+    #     self.add_section(
+    #         name='Barcode distribution across reads after PCR, RT and window-based duplicate removal',
+    #         anchor='scChIPseq_coverage_flagged_PCR_RT_rmDup',
+    #         description=desc,
+    #         plot=linegraph.plot(data, pconfig)
+    #     )
+    #     
 

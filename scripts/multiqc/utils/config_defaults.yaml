@@ -109,7 +109,10 @@ export_plot_formats:
 
 # Custom Config settings
 custom_content:
-    order: []
+    order:
+    - 'scChIPseq_general_table'
+    - 'scChIPseq_barcode'
+    - 'scChIPseq_alignments'
 
 # Option to disable sample name cleaning if desired
 fn_clean_sample_names: true
@@ -521,3 +524,4 @@ module_order:
             - RNA
 # MultiQC general module for catching output from custom scripts
     - 'custom_content'
+

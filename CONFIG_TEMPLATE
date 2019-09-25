@@ -1,0 +1,69 @@
+#########################################################################
+## PATHS AND SETTINGS
+#########################################################################
+
+BOWTIE_PATH = /bioinfo/local/build/Centos/bowtie/bowtie-1.2/bin/
+BOWTIE2_PATH = /bioinfo/local/build/Centos/bowtie2/bowtie2-2.2.9/
+SAMTOOLS_PATH = /bioinfo/local/build/Centos/samtools/samtools-1.3/bin/
+BEDTOOLS_PATH = /bioinfo/local/build/Centos/bedtools/bedtools-2.27.1/bin/
+PYTHON_PATH = /bioinfo/local/build/Centos/python/python-2.7.13/bin/
+R_PATH = /bioinfo/local/build/Centos/R/R-3.5.0/bin/
+FASTX_PATH = /bioinfo/local/build/fastx_toolkit_0.0.13/
+STAR_PATH = /bioinfo/local/build/Centos/STAR/STAR-2.6.0c/bin/Linux_x86_64/
+R_DOWNSTREAM = /data/users/pprompsy/GitLab/R_automated_scripts/scChIPseq_analysis/R_scChIP_seq_analysis.R
+
+#########################################################################
+## CLUSTER PARAMETERS
+#########################################################################
+
+NB_PROC = 8
+
+#########################################################################
+## PROJECT SPECIFIC PARAMETERS
+#########################################################################
+
+ANNOT = {genome_assembly}
+DESIGN_TYPE = {design_type}
+MARK = {mark}
+
+#########################################################################
+## BARCODE MAPPING
+#########################################################################
+
+BARCODE_LENGTH = {barcode_length} 
+BARCODE_LINKER_LENGTH = {barcode_linker_length}
+BARCODE_MAPPING_OPTS = {barcode_mapping_options}
+BARCODE_BOWTIE_IDX_PATH = {barcode_bowtie_index_path}
+
+#########################################################################
+## GENOME MAPPING
+#########################################################################
+
+GENOME_MAPPING_OPTS_STAR = {genome_mapping_options_star}
+GENOME_IDX_PATH_STAR = {genome_index_path}
+
+#########################################################################
+## DUPLICATE REMOVAL 
+#########################################################################
+
+REMOVE_RT_DUPLICATES = {remove_RT_duplicates}
+REMOVE_BY = {remove_by}
+DUPLICATES_WINDOW = {window_size}
+
+#########################################################################
+## COUNTING
+#########################################################################
+
+MIN_COUNT_PER_BARCODE_AFTER_RMDUP = {min_count_per_barcode_after_rmdup}
+BIN_SIZE = {bin_size}
+BED_FEATURES = {bed_features}
+TMP_DIR = /scratch/
+ENCODE_BLACKLIST = 
+
+#########################################################################
+## DOWNSTREAM ANALYSIS
+#########################################################################
+
+N_CLUSTER = {R_n_cluster}
+MIN_PERCENT_COR = {R_min_percent_cov} 
+MIN_COV = {R_min_cov}

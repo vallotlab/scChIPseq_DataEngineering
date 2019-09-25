@@ -85,28 +85,6 @@ is_in_path()
 }
 
 
-#sort_big TMP 	infile outfile kstring
-sort_big()
-{
-
-	
-	LARGETMP=${1}
-	infile=$2
-	outfile=$3
-	$kstring=$4
-
-	random_string=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13 ; echo '')
-	mkdir -p ${LARGETMP}/${random_string}
-	N_LINES=1000000 # Adjust when to still too large or too small
-	split --lines=${N_LINES} ${infile} ${LARGETMP}/${random_string}/splitted_
-	for small in ${LARGETMP}/${random_string}/splitted_*; do
-	   sort  -T ${LARGETMP} ${small} > ${LARGETMP}/${random_string}/sorted_${small}
-	   rm ${small}
-	done
-	echo "Done with sorting the splitted files, now concate the stuff"
-	sort -m -T ${LARGETMP} ${LARGETMP}/${random_string}/sorted_* > ${infile}.sorted
-}
-
 file_exists()
 {
 
