@@ -26,7 +26,7 @@ The multiple steps involved in the pipeline are :
 # Simplifed scheme of the pipeline
 ![]("www/Simplified_pipeline.png")
 <img src="www/Simplified_pipeline.png"  width="340" height="400">
-# v2.0.0
+# v3.5.0
 
 ```
 usage : schip_processing All -f FORWARD -r REVERSE -o OUTPUT -c CONFIG [-d] [-h] [-v]
