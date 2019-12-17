@@ -88,9 +88,151 @@ fastx_trimmer_func()
 	fi
 
     cmd="gzip ${ofile}"
-    exec_cmd ${cmd} > ${log} 2>&1
+    exec_cmd ${cmd} >> ${log} 2>&1
 }
 
+#BWA MEM mapping function 
+bwa_func()
+{
+   ## Logs
+   mkdir -p $3
+   local log=$3/mapping_bwa.log
+   echo -e "Running BWA mapping ..."
+   echo -e "Logs: $log"
+   echo
+
+   odir=$2  
+   prefix=$4
+   out_prefix=${odir}/${prefix}
+   ## input type [SE/PE]
+   inputs=($1)
+   if [[ ${#inputs[@]} -eq 1 ]]; then
+       if [[ ${inputs[0]} =~ \.gz ]]; then
+           cmd_in=" <(gzip -cd ${inputs[0]})"
+       else
+           cmd_in="${inputs[0]}"
+       fi
+   elif [[ ${#inputs[@]} -eq 2 ]]; then
+       if [[ ${inputs[0]} =~ \.gz ]]; then
+           cmd_in="<(gzip -cd ${inputs[0]}) <(gzip -cd ${inputs[1]})"
+       else
+           cmd_in="${inputs[0]} ${inputs[1]}"
+       fi
+   fi
+
+   ## Run Mapping
+   local out=$2
+   mkdir -p ${out}
+
+   cmd="bwa mem -t ${NB_PROC} -M ${GENOME_MAPPING_OPTS_BWA} ${GENOME_IDX_PATH_BWA}  ${cmd_in} > ${out_prefix}.sam"
+   exec_cmd ${cmd} > ${log} 2>&1
+   
+   #Remove multimappers
+   cmd="samtools view -H ${out_prefix}.sam | sed '/^@CO/ d' > ${out_prefix}_header.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+   #Remove secondary alignments that perturb the line order 
+   cmd="samtools view -F 256 ${out_prefix}.sam | awk -v OFS='\t' 'NR%2==1{r1=\$0;mapped=\$3; if( \$0 ~ /XA:Z:|SA:Z:/){p=\"no\"}else{p=\"yes\"}} NR%2==0{if( \$0 ~ /XA:Z:|SA:Z:/){} else {if(p==\"yes\" && mapped != \"*\"){print r1\"\n\"\$0}} }' > ${out_prefix}_noMultimappers.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+   
+   cmd="cat ${out_prefix}_header.sam ${out_prefix}_noMultimappers.sam > ${out_prefix}.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+
+   #Reconvert to BAM
+   cmd="samtools view -@ ${NB_PROC} -bS ${out_prefix}.sam > ${out_prefix}.bam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+
+	 #Sort
+   cmd="samtools sort -n -@ ${NB_PROC} ${out_prefix}.bam -o ${out_prefix}_nsorted.bam && mv ${out_prefix}_nsorted.bam ${out_prefix}.bam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+
+   ## Clean sam file
+  # cmd="rm ${out_prefix}.sam"
+  # exec_cmd ${cmd} >> ${log} 2>&1
+}
+
+#BOWTIE mapping function 
+bowtie_func()
+{
+   ## Logs
+   mkdir -p $3
+   local log=$3/mapping_bowtie.log
+   echo -e "Running Bowtie mapping ..."
+   echo -e "Logs: $log"
+   echo
+   star_mapping=$5
+   
+   ## input type 
+   inputs=($1)
+   if [[ ${#inputs[@]} -eq 1 ]]; then
+       if [[ ${inputs[0]} =~ \.gz ]]; then
+           cmd_in=" <(gzip -cd ${inputs[0]})"
+       else
+           cmd_in="${inputs[0]}"
+       fi
+   elif [[ ${#inputs[@]} -eq 2 ]]; then
+       if [[ ${inputs[0]} =~ \.gz ]]; then
+           cmd_in="-1 <(gzip -cd ${inputs[0]}) -2 <(gzip -cd ${inputs[1]})"
+       else
+           cmd_in="-1 ${inputs[0]} -2 ${inputs[1]}"
+       fi
+   fi
+
+   ## sample_id
+   if [ ! -z ${SAMPLE_ID} ]; then
+       cmd_id="--sam-RG ID:${SAMPLE_ID} --sam-RG SM:${SAMPLE_ID} --sam-RG LB:${SAMPLE_ID} --sam-RG PU:${SAMPLE_ID} --sam-RG PL:ILLUMINA"
+   else
+       cmd_id=""
+   fi
+
+   ## Run
+   local out=$2
+   mkdir -p ${out}
+   local out_prefix=${out}/$4
+
+   cmd="bowtie -p ${NB_PROC} -S -m1 --sam ${MAPPING_IDX_BOWTIE1} ${cmd_in} > ${out_prefix}.sam"
+   exec_cmd ${cmd} > $log 2>&1
+   
+  
+   cmd="grep -v '^@' ${out_prefix}.sam  | awk -v OFS=\"\t\" '\$3!=\"*\"{print \$1,\$3,\$4}' | sort -T ${TMP_DIR} --parallel=${NB_PROC} -k1,1 >  ${out_prefix}.nsorted.txt"
+   exec_cmd ${cmd} >> ${log} 2>&1
+   
+   cmd="rm -f ${out_prefix}.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+
+   cmd="wc -l  ${out_prefix}.nsorted.txt >  ${out_prefix}.bowtie_uniquely_mapped"
+   exec_cmd ${cmd} >> ${log} 2>&1
+   
+   cmd="samtools view -H ${star_mapping}  > ${out_prefix}.header.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+   
+   cmd="samtools view -F 256 ${star_mapping}  | sort -T ${TMP_DIR} --parallel=${NB_PROC} -k1,1  > ${out_prefix}.star.nsorted.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+  
+   cmd="rm -f  ${star_mapping} "
+   exec_cmd ${cmd} >> ${log} 2>&1
+
+   ##Join STAR & Bowtie -m1 bam files
+   cmd="join -1 1  -2 1 ${out_prefix}.nsorted.txt ${out_prefix}.star.nsorted.sam  > ${out_prefix}.joined.txt"
+   exec_cmd ${cmd} >> ${log} 2>&1
+
+   cmd="rm -f  ${out_prefix}.nsorted.txt ${out_prefix}.star.nsorted.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+
+   cmd="awk -v OFS=\"\t\" -v FS=' ' 'NR%2==1{a=\$1\"\t\"\$4\"\t\"\$5\"\t\"\$6\"\t\"\$7\"\t\"\$8\"\t\"\$9\"\t\"\$10\"\t\"\$11\"\t\"\$12\"\t\"\$13\"\t\"\$14\"\t\"\$15\"\t\"\$16\"\t\"\$17\"\t\"\$18\"\t\"\$19\"\t\"\$20; next} {if(\$2==\$5 && (\$3>=\$6-200 && \$3 <= \$6+200) ){print a\"\n\"\$1,\$4,\$5,\$6,\$7,\$8,\$9,\$10,\$11,\$12,\$13,\$14,\$15,\$16,\$17,\$18,\$19,\$20}}'  ${out_prefix}.joined.txt | sed -e 's/\s*$//g' > ${out_prefix}.joined.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+   
+   cmd="cat ${out_prefix}.header.sam ${out_prefix}.joined.sam > ${out_prefix}.joined.2.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+   
+   cmd="rm -f  ${out_prefix}.joined.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+
+   cmd="samtools sort -n -@ ${NB_PROC} ${out_prefix}.joined.2.sam -o ${out_prefix}_nsorted.bam && mv ${out_prefix}_nsorted.bam ${out_prefix}.bam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+   
+   cmd="rm -f  ${out_prefix}.joined.2.sam"
+   exec_cmd ${cmd} >> ${log} 2>&1
+}
 
 ## STAR MAPPING FUNCTION
 star_func()
@@ -138,7 +280,7 @@ star_func()
    #Reconvert to BAM
    cmd="samtools view -@ ${NB_PROC} -bS ${out}/Aligned.out.sam > ${out_prefix}.bam"
    exec_cmd ${cmd} >> ${log} 2>&1
-	  
+
 	 #Sort
    cmd="samtools sort -n -@ ${NB_PROC} ${out_prefix}.bam -o ${out_prefix}_nsorted.bam && mv ${out_prefix}_nsorted.bam ${out_prefix}.bam"
    exec_cmd ${cmd} >> ${log} 2>&1
@@ -329,9 +471,9 @@ bw_func()
  	
     name=$(basename $1 ".bam")
     if [[ ! -z ${ENCODE_BLACKLIST} && -e ${ENCODE_BLACKLIST} ]]; then
-        local cmd="bamCoverage --bam $1 --outFileName $out/${name}.bw --numberOfProcessors ${NB_PROC} --normalizeUsing RPKM --blackListFileName ${ENCODE_BLACKLIST}"
+        local cmd="bamCoverage --bam $1 --outFileName $out/${name}.bw --numberOfProcessors ${NB_PROC} --normalizeUsing CPM --ignoreForNormalization chrX --binSize 50 --smoothLength 500 --extendReads 150 --blackListFileName ${ENCODE_BLACKLIST}"
     else
-        local cmd="bamCoverage --bam $1 --outFileName $out/${name}.bw --numberOfProcessors ${NB_PROC} --normalizeUsing RPKM "
+        local cmd="bamCoverage --bam $1 --outFileName $out/${name}.bw --numberOfProcessors ${NB_PROC} --normalizeUsing CPM --ignoreForNormalization chrX --binSize 50 --smoothLength 500 --extendReads 150"
     fi
     exec_cmd ${cmd} > ${log} 2>&1
 
@@ -354,11 +496,11 @@ add_cellBarcode_func () {
   #Remove secondary aligned reads (256 <=> "not primary alignment") & If R1 is unmapped or multimapped (NH != 1), tag R1 & R2 with flag "4" <=> "unmapped" & "chr" = '*'
   cmd="samtools view -F 256 $1 | awk -v OFS='\t' 'NR%2==1{if(\$12==\"NH:i:1\"){mapped=1;print \$0} else{mapped=0;\$2=4;\$3=\"*\";\$4=0;\$6=\"*\";print \$0}} NR%2==0{if(mapped==1){print \$0} else{\$2=4;\$3=\"*\";\$4=0;\$6=\"*\";print \$0} }' > ${out_prefix}.sam"
   exec_cmd ${cmd} > ${log} 2>&1
-  
+
   #If read is mapped R1 & unmapped R2 -> set R2 position as '2147483647'
   cmd="cat ${out_prefix}.sam | awk -v OFS='\t' 'NR%2==1{print \$0} NR%2==0{if(\$3==\"*\"){\$4=2147483647;print \$0} else{print \$0} }' > ${out_prefix}_2.sam"
   exec_cmd ${cmd} >> ${log} 2>&1
-  
+ 
   #Remove comments from the header that produce bugs in the count phase
   cmd="samtools view -H $1 | sed '/^@CO/ d' > ${out_prefix}_header.sam"
   exec_cmd ${cmd} >> ${log} 2>&1
@@ -393,6 +535,7 @@ add_cellBarcode_func () {
   
   #Cleaning
   cmd="rm -f ${out_prefix}_unique.bam ${out_prefix}_flagged.sam ${out_prefix}_unique_sorted.sam"
+  exec_cmd ${cmd} >> ${log} 2>&1
 }
 
 ##remove_PCR_RT_duplicates_func (Sort and remove consecutive reads if identified as #PCR or #RT)
@@ -409,7 +552,7 @@ remove_PCR_RT_duplicates_func(){
   ##Sort by barcode then chromosome then position R2
   #Find the column containing the barcode tag XB
   cmd="barcode_field=\$(samtools view ${out_prefix}_flagged.bam  | sed -n \"1 s/XB.*//p\" | sed 's/[^\t]//g' | wc -c)"
-  exec_cmd ${cmd} >> ${log} 2>&1
+  exec_cmd ${cmd} > ${log} 2>&1
   
   echo "The barcode field is $barcode_field" >> ${log}
   
@@ -556,7 +699,7 @@ remove_duplicates()
     else
 	cmd="${PYTHON_PATH}/python ${SCRIPTS_PATH}/rmDup.py -i ${prefix}.bam -o ${prefix}_rmDup.bam -v "
     fi
-    exec_cmd ${cmd} >> ${log} 2>&1
+    exec_cmd ${cmd} > ${log} 2>&1
     #Create count Table from flagged - PCR dups - RT dups and window-based rmDup (need to sort by b arcode)
     cmd="barcode_field=\$(samtools view ${prefix}_rmDup.bam  | sed -n \"1 s/XB.*//p\" | sed 's/[^\t]//g' | wc -c)"
     exec_cmd ${cmd} >> $log 2>&1
@@ -567,6 +710,35 @@ remove_duplicates()
     cmd="samtools index ${prefix}_rmDup.bam"
     exec_cmd ${cmd} >> $log 2>&1
     
+}
+
+## filter_black_regions 
+#Filter out dark regions in bam file
+#bam_to_bedGraph ${FLAGGED_RM_DUP_BAM} $ODIR ${LOGS}
+filter_black_regions() {
+  bam_in=$1
+  local odir=$2
+  log=local log=$3/filter_black_regions.log
+
+  local prefix=${odir}/$(basename $bam_in | sed -e 's/.bam$//')
+  
+  echo -e "Filtering out dark regions in bam file..."
+  echo -e "Logs: $log"
+  echo
+  
+  mkdir -p ${odir}
+  
+  if [[ ! -z ${ENCODE_BLACKLIST} && -e ${ENCODE_BLACKLIST} ]]; then
+    cmd="bedtools intersect -v -abam ${bam_in} -b ${ENCODE_BLACKLIST} > ${bam_in}.2 && mv ${bam_in}.2 ${bam_in}"
+    exec_cmd ${cmd} > $log 2>&1
+    
+    cmd="samtools index ${bam_in}"
+    exec_cmd ${cmd} >> $log 2>&1
+  fi
+  ## Index BAM file
+
+ echo "Filtered blacklisted regions !"
+  
 }
 
 ## bam_to_bedGraph 
@@ -592,7 +764,7 @@ bam_to_bedGraph() {
   
   #Create header
   cmd="samtools view -H $bam_in | sed '/^@HD/ d' > ${prefix}_tmp_header.sam"
-  exec_cmd ${cmd} >> ${log} 2>&1
+  exec_cmd ${cmd} > ${log} 2>&1
     
   #Sort by Barcode, Chr, Pos R1 :
   cmd="samtools view $bam_in | LC_ALL=C sort -T ${TMP_DIR} --parallel=${NB_PROC} -t $'\t' -k \"$barcode_field.8,$barcode_field\"n -k 3.4,3g -k 4,4n >> ${prefix}_tmp_header.sam"
@@ -666,7 +838,7 @@ make_counts(){
     #Counting unique BCs
     local bc_prefix=$(basename $1 | sed -e 's/.bam$//')
     cmd="barcodes=\$(wc -l ${mapping_dir}/${bc_prefix}.count | awk '{print \$1}')"
-    exec_cmd ${cmd} >> ${log} 2>&1
+    exec_cmd ${cmd} > ${log} 2>&1
 
     echo "Barcodes found = $barcodes" >> ${log} 
     for bsize in ${BIN_SIZE}
@@ -677,7 +849,7 @@ make_counts(){
 	    opts="${opts} -f ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} "
 	fi
         cmd="${PYTHON_PATH}/python ${SCRIPTS_PATH}/sc2counts.py -i $1 -o ${prefix}_counts_${bsize}.tsv ${opts} -s $barcodes -v"
-	exec_cmd ${cmd} >> ${log} 2>&1
+	      exec_cmd ${cmd} >> ${log} 2>&1
     done
 
     for bed in ${BED_FEATURES}

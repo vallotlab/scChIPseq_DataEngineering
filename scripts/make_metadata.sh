@@ -106,7 +106,6 @@ echo "$prefix,$match_barcode,$index_1_2_not_3,$index_1_not_2_not_3,$index_2_not_
 echo "Sample_Name,Deduplicated reads, Window duplicates,RT duplicates,PCR duplicates,Uniquely mapped not barcoded,Mapped to multiple loci,Unmapped" > ${odir}/scChIPseq_alignments.csv
 echo "$prefix,$unique_reads,$R2_unmapped_duplicates,$rt_duplicates,$pcr_duplicates,$uniquely_mapped_unbarcoded,$multimapped,$unmapped" >> ${odir}/scChIPseq_alignments.csv
 
-cat ${flagged_rmPCR_RT_rmDup_count}
 n100=$( sed 's/^\s*//g' ${flagged_rmPCR_RT_rmDup_count} | awk -v limit=100 '$1>=limit && NR>1{c++} END{print c+0}')
 n500=$( sed 's/^\s*//g' ${flagged_rmPCR_RT_rmDup_count} | awk -v limit=500 '$1>=limit && NR>1{c++} END{print c+0}' )
 n1000=$( sed 's/^\s*//g' ${flagged_rmPCR_RT_rmDup_count} | awk -v limit=1000 '$1>=limit && NR>1{c++} END{print c+0}')
