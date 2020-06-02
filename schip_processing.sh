@@ -234,6 +234,11 @@ if [[ -z $FORWARD || -z $REVERSE || -z $CONF || -z $ODIR || -z $NAME ]]; then
       help_func All
       exit
 fi
+
+echo
+echo -e "Starting on $(date) ! Results are available in ${ODIR}"
+echo
+
 PREFIX=$NAME
 CMD_LINE="$@"
 LOGDIR=${ODIR}/logs
@@ -405,6 +410,6 @@ if [[  -n "${TO_RUN[R_analysis]}" ]]; then
 fi
 
 echo
-echo -e "Completed on ${when}! Results are available in ${ODIR}"
+echo -e "Completed on $(date) ! Results are available in ${ODIR}"
 echo
 
