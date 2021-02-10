@@ -329,7 +329,7 @@ echo "Running pipeline for sample $NAME"
     ## 7-Generate BedGraph file
     if [[  -n "${TO_RUN[Coverage]}" ]]; then
       echo -e "Coverage - BedGraph... \n"
-      bam_to_bedGraph ${GENOME_BAM_FLAGGED_RMDUP} ${GENOME_COUNT_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
+      #bam_to_bedGraph ${GENOME_BAM_FLAGGED_RMDUP} ${GENOME_COUNT_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
       
       echo -e "Coverage - scBED... \n"
       bam_to_sc_bed ${GENOME_BAM_FLAGGED_RMDUP} ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
