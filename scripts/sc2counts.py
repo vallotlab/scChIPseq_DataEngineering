@@ -16,7 +16,7 @@ from bx.intervals.intersection import Intersecter, Interval
     
 def timing(function, *args):
     """                              
-    Run a fonction and eturn the run time and the result of the function
+    Run a fonction and return the run time and the result of the function
     If the function requires arguments, those can be passed in
     """
     startTime = time.time()
@@ -47,11 +47,9 @@ def load_BED(in_file, featuresOverCoord=False, verbose=False):
                 print "## %d features loaded ..." % nline
             nline +=1
             bedtab = line.split("\t")
-            try:
-                chromosome, start, end, name = bedtab[:4]
-            except ValueError:
-                print >> sys.stderr, "Warning : wrong input format in line", nline,". Not a BED file !?"
-                continue
+            chromosome, start, end = bedtab[:3]
+            if len(bedtab)>3 & featuresOverCoord==True:
+                name = bedtab[4]
 
             # BED files are zero-based, half-open as Intervals objects
             start = int(start) 
@@ -251,6 +249,8 @@ def save2BinMatrix(x, colnames, ofile, chromsize, chrom_idx, bsize, filt, verbos
 
     cx = x.tocsr()
     ofile = re.sub("\.tsv|\.txt","_filt_"+ str(filt) +".tsv",ofile)
+    if os.path.exists(ofile):
+        os.remove(ofile)
     handle = open(ofile,'ab')
     colnames = np.array([[" "] + colnames])
     np.savetxt(handle, colnames, '%s', delimiter="\t")
@@ -279,6 +279,10 @@ def save2FeatMatrix(x, colnames, ofile, rownames, filt, verbose=False, rmzeros=F
 
     cx = x.tocsr()
     ofile = re.sub("\.tsv|\.txt","_filt_"+ str(filt) +".tsv",ofile)
+    if os.path.exists(ofile):
+        os.remove(ofile)
+    if os.path.exists(ofile + ".gz"):
+        os.remove(ofile + ".gz")
     handle = open(ofile,'ab')
     colnames = np.array([[" "] + colnames])
     np.savetxt(handle, colnames, '%s', delimiter="\t")

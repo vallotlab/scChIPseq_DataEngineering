@@ -320,12 +320,12 @@ prefix=$3
     echo
   
   #Beads type [Hifibio | LBC] -> different Index lengths [20 + 4 | 16 + 4]
-  if [[ ${BARCODE_LENGTH} -eq 56 ]]
+  if [[ ${BARCODE_LENGTH} -eq 60 ]]
   	then
   	echo -e "Short barcode :LBC"
-      start_index_1=1
-  	  start_index_2=21
-  	  start_index_3=41
+      start_index_1=5
+  	  start_index_2=25
+  	  start_index_3=45
   	  size_index=16
          else
   	echo -e "Long barcode : Hifibio "
@@ -913,8 +913,10 @@ bam_to_sc_bed() {
 '
 
   #Gzip
-  cmd="for i in $odir/scBed*/*.bed; do gzip \$i; done"
-  exec_cmd ${cmd} >> ${log} 2>&1
+  if [ -f $odir/scBed*/*.bed ];then
+  	cmd="for i in $odir/scBed*/*.bed; do gzip -9 \$i; done"
+  	exec_cmd ${cmd} >> ${log} 2>&1
+  fi
   
   cmd="rm -f ${prefix}_tmp_header.sam ${prefix}_tmp.sorted.bam"
   exec_cmd ${cmd} >> ${log} 2>&1
@@ -949,7 +951,7 @@ make_counts(){
 	    opts="${opts} -f ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} "
 	fi
         cmd="${PYTHON_PATH}/python ${SCRIPTS_PATH}/sc2counts.py -i $1 -o ${prefix}_counts_${bsize}.tsv ${opts} -s $barcodes -v"
-	      exec_cmd ${cmd} >> ${log} 2>&1
+        exec_cmd ${cmd} >> ${log} 2>&1
     done
 
     for bed in ${BED_FEATURES}
@@ -962,9 +964,11 @@ make_counts(){
 	osuff=$(basename ${bed} | sed -e 's/.bed//')
         cmd="${PYTHON_PATH}/python ${SCRIPTS_PATH}/sc2counts.py -i $1 -o ${prefix}_counts_${osuff}.tsv ${opts} -s $barcodes -v"
         exec_cmd ${cmd} >> ${log} 2>&1
-    done
-    echo
 
+    done
+   
+     for i in ${prefix}*.tsv; do gzip -9 $i; done
+ 
 }
 
 add_info_to_log(){
