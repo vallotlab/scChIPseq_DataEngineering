@@ -234,6 +234,11 @@ if [[ -z $FORWARD || -z $REVERSE || -z $CONF || -z $ODIR || -z $NAME ]]; then
       help_func All
       exit
 fi
+
+echo
+echo -e "Starting on $(date) ! Results are available in ${ODIR}"
+echo
+
 PREFIX=$NAME
 CMD_LINE="$@"
 LOGDIR=${ODIR}/logs
@@ -323,10 +328,13 @@ echo "Running pipeline for sample $NAME"
     
     ## 7-Generate BedGraph file
     if [[  -n "${TO_RUN[Coverage]}" ]]; then
-      echo -e "Coverage... \n"
+      echo -e "Coverage - BedGraph... \n"
       bam_to_bedGraph ${GENOME_BAM_FLAGGED_RMDUP} ${GENOME_COUNT_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
-      echo "Not an unbound, generating bigwig & counting"
-      ## 8- Generate bigwig files
+      
+      echo -e "Coverage - scBED... \n"
+      bam_to_sc_bed ${GENOME_BAM_FLAGGED_RMDUP} ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
+      
+      echo -e "Coverage - BigWigs... \n"
       bw_func ${GENOME_BAM_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
     fi
     
@@ -405,6 +413,6 @@ if [[  -n "${TO_RUN[R_analysis]}" ]]; then
 fi
 
 echo
-echo -e "Completed on ${when}! Results are available in ${ODIR}"
+echo -e "Completed on $(date) ! Results are available in ${ODIR}"
 echo
 

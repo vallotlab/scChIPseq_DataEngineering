@@ -25,7 +25,7 @@ def timing(function, *args):
     return result
 
 
-def load_BED(in_file, verbose=False):
+def load_BED(in_file, featuresOverCoord=False, verbose=False):
     """
     Read a BED file and store the intervals in a tree
     Intervals are zero-based objects. The output object is a hash table with
@@ -56,7 +56,11 @@ def load_BED(in_file, verbose=False):
             # BED files are zero-based, half-open as Intervals objects
             start = int(start) 
             end = int(end)
-            featureNames.append(name.strip())
+            if featuresOverCoord==True:
+                featureNames.append(name.strip())
+            else:
+                featureNames.append(chromosome + ":" + str(start) + "-" + str(end))
+            
             if chromosome in x:
                 tree = x[chromosome]
                 tree.add_interval(Interval(start, end, value={'pos' : nline - 1}))
@@ -317,6 +321,7 @@ if __name__ == "__main__":
     parser.add_argument('-f', '--filt', help="Select barcodes with at least FILT counts. Default: None", default="1", type=str)
     parser.add_argument('-w', '--useWholeRead', help="Use the whole read in the count instead of the 5' end. Default: False", default=False, action="store_true")
     parser.add_argument('-r', '--rmZeros', help="Do not export bins/features with only zeros in the count table. Default: False", default=False, action="store_true")
+    parser.add_argument('-F', '--featuresOverCoord', help="When counting on BED file, write feature name (column 4 of BED) as rownames of count matrix instead of coordinates. Default: False", default=False, action="store_true")
     parser.add_argument('-v', '--verbose', help="", action="store_true")
  
     args = parser.parse_args()
@@ -343,6 +348,7 @@ if __name__ == "__main__":
         print "## useWholeReads =", args.useWholeRead
         print "## rmZeros =", args.rmZeros
         print "## verbose =", args.verbose
+        print "## featuresOverCoord =", args.featuresOverCoord
         print
 
     # Read the SAM/BAM file
@@ -372,7 +378,7 @@ if __name__ == "__main__":
         chromsize_bins = get_chromosome_bins(chromsize, args.bin)
         N_bins = sum(chromsize_bins.values())
     elif args.bed is not None:
-        feat_bins = load_BED(args.bed, args.verbose)
+        feat_bins = load_BED(args.bed, args.featuresOverCoord, args.verbose)
         N_bins = len(feat_bins[1]) 
  
     if args.verbose:

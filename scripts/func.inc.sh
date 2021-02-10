@@ -79,13 +79,21 @@ fastx_trimmer_func()
 	if [ $mode == 'barcode' ] 
 		then
 		local ofile=${out_prefix}_trimmed_BC.R2.fastq
-    		cmd="${FASTX_PATH}fastx_trimmer -Q 33 -l $2 -i <(gzip -cd $1) -o ${ofile}"
+    		if [[ $1 =~ \.gz ]]; then
+           			cmd="${FASTX_PATH}fastx_trimmer -Q 33 -l $2 -i <(gzip -cd $1) -o ${ofile}"
+      	 		else
+           			cmd="${FASTX_PATH}fastx_trimmer -Q 33 -l $2 -i $1 -o ${ofile}"
+       		fi
     		exec_cmd ${cmd} > ${log} 2>&1	
 		else			#Change option -l (last) to -f (first) to remove the barcode and linker from R2 reads in preparation for genome alignment
-		local ofile=${out_prefix}_trimmed_G.R2.fastq
-		cmd="${FASTX_PATH}fastx_trimmer -Q 33 -f $2 -i <(gzip -cd $1) -o ${ofile}" 
-    	exec_cmd ${cmd} > ${log} 2>&1	
-	fi
+			local ofile=${out_prefix}_trimmed_G.R2.fastq
+                	if [[ $1 =~ \.gz ]]; then
+                        	cmd="${FASTX_PATH}fastx_trimmer -Q 33 -f $2 -i <(gzip -cd $1) -o ${ofile}"
+                        else
+                        	cmd="${FASTX_PATH}fastx_trimmer -Q 33 -f $2 -i $1 -o ${ofile}"
+                	fi		
+    		exec_cmd ${cmd} > ${log} 2>&1	
+		fi
 
     cmd="gzip ${ofile}"
     exec_cmd ${cmd} >> ${log} 2>&1
@@ -255,11 +263,16 @@ star_func()
        else
            cmd_in="${inputs[0]}"
        fi
-   elif [[ ${#inputs[@]} -eq 2 ]]; then
+  elif [[ ${#inputs[@]} -eq 2 ]]; then
        if [[ ${inputs[0]} =~ \.gz ]]; then
-           cmd_in="<(gzip -cd ${inputs[0]}) <(gzip -cd ${inputs[1]})"
+           cmd_in="<(gzip -cd ${inputs[0]})"
        else
-           cmd_in="${inputs[0]} ${inputs[1]}"
+           cmd_in="${inputs[0]}"
+       fi
+       if [[ ${inputs[1]} =~ \.gz ]]; then
+           cmd_in="$cmd_in <(gzip -cd ${inputs[1]})"
+       else
+           cmd_in="$cmd_in ${inputs[1]}"
        fi
    fi
 
@@ -321,15 +334,27 @@ prefix=$3
     	start_index_3=49
     	size_index=20
   fi
-  
-  ##Extract three indexes from reads : 1 - 16 = index 1 ; 21 - 36 = index 2; 41 - 56 = index 3
-  cmd="gzip -cd  $read2 | awk -v start_index_1=$start_index_1 -v size_index=$size_index  'NR%4==1{print \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_1,size_index)}' > ${out}/read_indexes_1.fasta"
+
+##Extract three indexes from reads : 1 - 16 = index 1 ; 21 - 36 = index 2; 41 - 56 = index 3
+if [[ ${read2} =~ \.gz ]]; then
+         cmd="gzip -cd  $read2 | awk -v start_index_1=$start_index_1 -v size_index=$size_index  'NR%4==1{print \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_1,size_index)}' > ${out}/read_indexes_1.fasta"
+     else
+         cmd="cat $read2 | awk -v start_index_1=$start_index_1 -v size_index=$size_index  'NR%4==1{print \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_1,size_index)}' > ${out}/read_indexes_1.fasta"
+ fi
   exec_cmd ${cmd} > ${log} 2>&1
   
-  cmd="gzip -cd  $read2 | awk -v start_index_2=$start_index_2 -v size_index=$size_index 'NR%4==1{print  \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_2,size_index)}' > ${out}/read_indexes_2.fasta"
+ if [[ ${read2} =~ \.gz ]]; then
+         cmd="gzip -cd $read2 | awk -v start_index_2=$start_index_2 -v size_index=$size_index 'NR%4==1{print  \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_2,size_index)}' > ${out}/read_indexes_2.fasta"
+     else
+         cmd="cat $read2 | awk -v start_index_2=$start_index_2 -v size_index=$size_index 'NR%4==1{print  \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_2,size_index)}' > ${out}/read_indexes_2.fasta"
+ fi
   exec_cmd ${cmd} >> ${log} 2>&1
-  
-  cmd="gzip -cd  $read2 | awk -v start_index_3=$start_index_3 -v size_index=$size_index 'NR%4==1{print \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_3,size_index)}' > ${out}/read_indexes_3.fasta"
+
+ if [[ ${read2} =~ \.gz ]]; then
+       cmd="gzip -cd  $read2 | awk -v start_index_3=$start_index_3 -v size_index=$size_index 'NR%4==1{print \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_3,size_index)}' > ${out}/read_indexes_3.fasta"
+    else
+ cmd="cat $read2 | awk -v start_index_3=$start_index_3 -v size_index=$size_index 'NR%4==1{print \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_3,size_index)}' > ${out}/read_indexes_3.fasta"    
+fi  
   exec_cmd ${cmd} >> ${log} 2>&1
   
   #Map INDEXES 1 against Index1 library
@@ -820,6 +845,81 @@ bam_to_bedGraph() {
 
 }
 
+## bam_to_bedGraph 
+#Generates a bedgraph for sushi plots from a BAM file
+#bam_to_bedGraph ${FLAGGED_RM_DUP_BAM} ${FLAGGED_RM_DUP_COUNT} ${FLAGGED_RM_DUP_BEDGRAPH} ${LOGS}
+bam_to_sc_bed() {
+  bam_in=$1
+  count=$2
+  local odir=$3
+  log=local log=$4/BamToScBed.log
+
+
+  local prefix=${odir}/$(basename $bam_in | sed -e 's/.bam$//')
+  
+  echo -e "Creating sc bed from Mapped & Dedup BAM ..."
+  echo -e "Logs: $log"
+  echo
+  
+  mkdir -p ${odir}
+  for i in $(echo $2 | sed 's/,/ /g'); do mkdir -p ${odir}/scBed_$i/ ; done
+  
+  #Get barcode field & read length
+  barcode_field=$(samtools view $bam_in  | sed -n "1 s/XB.*//p" | sed 's/[^\t]//g' | wc -c)
+
+  #Create header
+  cmd="samtools view -H $bam_in | sed '/^@HD/ d' > ${prefix}_tmp_header.sam"
+  exec_cmd ${cmd} > ${log} 2>&1
+    
+  #Sort by Barcode, Chr, Pos R1 :
+  cmd="samtools view $bam_in | LC_ALL=C sort -T ${TMP_DIR} --parallel=${NB_PROC} -t $'\t' -k \"$barcode_field.8,$barcode_field\"n -k 3.4,3g -k 4,4n >> ${prefix}_tmp_header.sam"
+  exec_cmd ${cmd} >> ${log} 2>&1
+    
+  cmd="samtools view -@ ${NB_PROC} -b ${prefix}_tmp_header.sam > ${prefix}_tmp.sorted.bam"
+  exec_cmd ${cmd} >> ${log} 2>&1
+  
+  #Convert to bedgraph: Input must be sorted by barcode, chr, position R1
+  samtools view ${prefix}_tmp.sorted.bam | awk -v odir=${odir}/scBed -v bc_field=$barcode_field -v OFS="\t" -v count=$count '
+  BEGIN{
+    split(count,min_counts,",")
+  }
+  NR==1{
+    lastBC=substr($bc_field,6,15);
+    i=1
+    chr[i] = $3
+    start[i] = $4
+    end[i] = $4 +1
+  }
+  NR>1{
+  if(lastBC==substr($bc_field,6,15)){
+    i = i +1
+    chr[i] = $3
+    start[i] = $4
+    end[i] = $4 +1
+    }
+    else{
+    for(m=1; m<=length(min_counts);m++){
+      if(i > min_counts[m]){
+        for (x=1; x<=i; x++){
+          out = odir"_"min_counts[m]"/"lastBC".bed"
+          print chr[x],start[x],end[x] >> out
+        }
+      }
+    }
+    i=0
+    }
+     lastBC=substr($bc_field,6,15);
+}
+'
+
+  #Gzip
+  cmd="for i in $odir/scBed*/*.bed; do gzip \$i; done"
+  exec_cmd ${cmd} >> ${log} 2>&1
+  
+  cmd="rm -f ${prefix}_tmp_header.sam ${prefix}_tmp.sorted.bam"
+  exec_cmd ${cmd} >> ${log} 2>&1
+
+}
 
 ## Generate genomic count table
 make_counts(){
