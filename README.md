@@ -9,7 +9,7 @@ as count matrices, coverage file and report.
   
 ![]("www/scCutTag_InDrop.jpg")
 <p align="center">
-<img src="www/scCutTag_InDrop.jpg"  width="650" height="683">
+<img src="www/scCutTag_InDrop.jpg"  width="580" height="764">
 </p>
   
 # The Pipeline
