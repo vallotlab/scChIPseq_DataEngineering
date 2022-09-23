@@ -42,7 +42,7 @@ echo "$mem"
 
 
 #CREATE CONFIG FILE : HUMAN, BEADS CURIE, IP, BED = 20k +50k
-cd ~/GitLab/ChIP-seq_single-cell_LBC_4.0/
+cd /data/users/pprompsy/GitLab/scChIPseq_InDrop/
 
 while IFS= read -r line
 do
@@ -73,7 +73,7 @@ do
   OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_MOUSE_LBC_H3K4ME3
   fi
 
-  #./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
+  ./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
  
   OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/${ASSEMBLY}/${FINAL_NAME}
   DOWNSTREAM_DIR=/data/kdi_prod/project_result/1184/02.00/results/${ASSEMBLY}/
@@ -82,7 +82,7 @@ do
   READ2=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/${DATASET_NAME}/${DATASET_NAME}.R2.fastq.gz
   mem=$(get_mem $READ1)
   echo $mem
-  echo "cd ~/GitLab/ChIP-seq_single-cell_LBC_4.0/; ./schip_processing.sh All -f ${READ1} -r ${READ2} -c ${OUTPUT_CONFIG}  -o ${OUTPUT_DIR} --name ${FINAL_NAME}" | qsub -l "nodes=1:ppn=8,mem=${mem}gb" -N job_${FINAL_NAME}_${ASSEMBLY}
+  echo "cd /data/users/pprompsy/GitLab/scChIPseq_InDrop/; ./schip_processing.sh All -f ${READ1} -r ${READ2} -c ${OUTPUT_CONFIG}  -o ${OUTPUT_DIR} --name ${FINAL_NAME}" | qsub -l "nodes=1:ppn=8,mem=${mem}gb" -N job_${FINAL_NAME}_${ASSEMBLY}
 
 done < "$sample_sheet"
 

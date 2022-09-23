@@ -753,8 +753,8 @@ filter_black_regions() {
   
   mkdir -p ${odir}
   
-  if [[ ! -z ${ENCODE_BLACKLIST} && -e ${ENCODE_BLACKLIST} ]]; then
-    cmd="bedtools intersect -v -abam ${bam_in} -b ${ENCODE_BLACKLIST} > ${bam_in}.2 && mv ${bam_in}.2 ${bam_in}"
+  if [[ ! -z ${BIN_PATH}/${ENCODE_BLACKLIST} && -e ${BIN_PATH}/${ENCODE_BLACKLIST} ]]; then
+    cmd="bedtools intersect -v -abam ${bam_in} -b ${BIN_PATH}/${ENCODE_BLACKLIST} > ${bam_in}.2 && mv ${bam_in}.2 ${bam_in}"
     exec_cmd ${cmd} > $log 2>&1
     
     cmd="samtools index ${bam_in}"
@@ -845,37 +845,6 @@ bam_to_bedGraph() {
 
 }
 
-## bam_to_fragment_file 
-# Generates a bedgraph for sushi plots from a BAM file
-# bam_to_fragment_file ${FLAGGED_RM_DUP_BAM} ${OUTPUT_DIRECTORY} ${LOGS}
-bam_to_fragment_file() {
-  bam_in=$1
-  local odir=$2
-  log=local log=$3/bam_to_fragment_file.log
-
-  local prefix=${odir}/$(basename $bam_in |sed -e 's/.bam$//')
-  
-  echo -e "Creating fragment.file from Mapped & Dedup BAM ..."
-  echo -e "Logs: $log"
-  echo
-  
-  mkdir -p ${odir}
-  fragment_file=$(basename $bam_in |sed 's/.bam/.fragment.tsv/g')
-  samtools view CB_H3K27me3_flagged_rmPCR_RT_rmDup.bam | awk -v OFS="\t" '
-  function max(a, b) {
-    return a > b ? a: b
-  }
-  {gsub("XB:Z:","",$18); if($8==0){print $3,max(1,$4-50),$4+50,$18,1} else if($8>$4){print $3,$4,$8,$18,1} else if($4>$8){print $3,$8,$4,$18,1}}' > ${odir}/${fragment_file}.unsorted
-  
-  bedtools sort -i ${fragment_file}.unsorted > ${fragment_file}
-  rm -f  ${fragment_file}.unsorted
-  bgzip -f ${fragment_file}
-  tabix -b2 -e3 ${fragment_file} 
-
-  echo "Done !"
-}
-
-
 ## bam_to_bedGraph 
 #Generates a bedgraph for sushi plots from a BAM file
 #bam_to_bedGraph ${FLAGGED_RM_DUP_BAM} ${FLAGGED_RM_DUP_COUNT} ${FLAGGED_RM_DUP_BEDGRAPH} ${LOGS}
@@ -944,15 +913,46 @@ bam_to_sc_bed() {
 '
 
   #Gzip
-  if [ -f $odir/scBed*/*.bed ];then
-  	cmd="for i in $odir/scBed*/*.bed; do gzip -9 \$i; done"
-  	exec_cmd ${cmd} >> ${log} 2>&1
+  files=$(ls $odir/scBed_${count}/*.bed | head -n1)
+  if [ -f $files ];then
+        cmd="for i in $odir/scBed_${count}/*.bed; do gzip -9 \$i; done"
+        exec_cmd ${cmd} >> ${log} 2>&1
   fi
   
   cmd="rm -f ${prefix}_tmp_header.sam ${prefix}_tmp.sorted.bam"
   exec_cmd ${cmd} >> ${log} 2>&1
 
 }
+
+## Generate Fragment Files count table
+# Create Fragment File
+bam_to_fragment_file(){
+
+  in_prefix=$1
+  odir=$2
+  local prefix=$(basename $in_prefix | sed -e 's/.bam$//')
+  out_prefix=${odir}/${prefix}
+  echo $in_prefix
+  echo $prefix
+  echo $(which samtools)
+ 
+  ##Sort by barcode then chromosome then position R2
+  #Find the column containing the barcode tag XB
+  barcode_field=$(/bioinfo/local/build/Centos/samtools/samtools-0.1.19/samtools view $in_prefix |head -n1 |sed -n "1 s/XB.*//p" |sed 's/[^\t]//g' | wc -c)
+  echo "bc field" $barcode_field
+  
+  #Sort by barcode then chromosome then read position
+  samtools view ${in_prefix} | grep -E "XB:Z" | awk -v bc_field=$barcode_field -v OFS="\t" '{gsub("XB:Z:","",$bc_field); print $3,$4,$4+100,$bc_field,1}' > ${out_prefix}.fragments.tsv
+
+  #Compress
+  /bioinfo/local/build/Centos/samtools/samtools-1.9/bin/bgzip -@ 8 -f -l 9 ${out_prefix}.fragments.tsv
+
+  ## Index flagged_rmPCR_RT file
+  /bioinfo/local/build/Centos/samtools/samtools-1.9/bin/tabix -p bed ${out_prefix}.fragments.tsv.gz
+
+
+ }
+
 
 ## Generate genomic count table
 make_counts(){
@@ -981,7 +981,8 @@ make_counts(){
         if [ ! -z ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} ]; then
 	    opts="${opts} -f ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} "
 	fi
-        cmd="${PYTHON_PATH}/python ${SCRIPTS_PATH}/sc2counts.py -i $1 -o ${prefix}_counts_${bsize}.tsv ${opts} -s $barcodes -v"
+
+	cmd="${PYTHON_PATH}/python ${SCRIPTS_PATH}/sc2sparsecounts.py -i $1 -o ${prefix} ${opts} -s $barcodes -t 'XB' -v"
         exec_cmd ${cmd} >> ${log} 2>&1
     done
 
@@ -993,13 +994,10 @@ make_counts(){
             opts="${opts} -f ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} "
         fi
 	osuff=$(basename ${bed} | sed -e 's/.bed//')
-        cmd="${PYTHON_PATH}/python ${SCRIPTS_PATH}/sc2counts.py -i $1 -o ${prefix}_counts_${osuff}.tsv ${opts} -s $barcodes -v"
+        cmd="${PYTHON_PATH}/python ${SCRIPTS_PATH}/sc2sparsecounts.py -i $1 -o ${prefix}_${osuff} ${opts} -s $barcodes -t 'XB' -v"
         exec_cmd ${cmd} >> ${log} 2>&1
 
-    done
-   
-     for i in ${prefix}*.tsv; do gzip -9 $i; done
- 
+    done 
 }
 
 add_info_to_log(){

@@ -319,7 +319,7 @@ echo "Running pipeline for sample $NAME"
       GENOME_BAM_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT_rmDup.bam
       
       ## 6-bis Removing encode black regions
-      if [[ ! -z ${ENCODE_BLACKLIST} && -e ${ENCODE_BLACKLIST} ]]; then
+      if [[ ! -z ${BIN_PATH}/${ENCODE_BLACKLIST} && -e ${BIN_PATH}/${ENCODE_BLACKLIST} ]]; then
         filter_black_regions $GENOME_BAM_FLAGGED_RMDUP ${ODIR} ${LOGDIR}
       fi
     fi
@@ -343,11 +343,12 @@ echo "Running pipeline for sample $NAME"
         echo -e "Counting... \n"
         ## 9- Use the R1 bam with the barcode flag to generate the count table (sc2counts.py)
         time make_counts ${GENOME_BAM_FLAGGED_RMDUP} ${ODIR}/counts/ ${ODIR}/mapping/ ${LOGDIR}
+	time bam_to_fragment_file ${GENOME_BAM_FLAGGED_RMDUP} ${ODIR}/counts/
       else
         echo "Is an unbound, skipping generating bigwig & counting, going directly to reporting"
       fi
     fi
-
+   
 
 ## 10- Write Metadata
 if [[  -n "${TO_RUN[MQC]}" ]]; then

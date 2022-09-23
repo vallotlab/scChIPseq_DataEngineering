@@ -1,3 +1,16 @@
+
+***********************************
+CHANGES IN VERSION 0.0.4.0
+
+NEW FEATURES
+
+   o As the NGS platform doesn't do 4 dark cycles at the start of constant read 2, the
+position of cell barcodes indexes, linker and genomic DNA have shifted 4-bp leftwards.
+   o New run_multiple_sample.sh script that reads in a sample sheet to launch multiple samples
+
+
+
+
 ***********************************
 CHANGES IN VERSION 0.0.3.5
 
