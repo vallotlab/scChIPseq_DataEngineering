@@ -845,6 +845,37 @@ bam_to_bedGraph() {
 
 }
 
+## bam_to_fragment_file 
+# Generates a bedgraph for sushi plots from a BAM file
+# bam_to_fragment_file ${FLAGGED_RM_DUP_BAM} ${OUTPUT_DIRECTORY} ${LOGS}
+bam_to_fragment_file() {
+  bam_in=$1
+  local odir=$2
+  log=local log=$3/bam_to_fragment_file.log
+
+  local prefix=${odir}/$(basename $bam_in |sed -e 's/.bam$//')
+  
+  echo -e "Creating fragment.file from Mapped & Dedup BAM ..."
+  echo -e "Logs: $log"
+  echo
+  
+  mkdir -p ${odir}
+  fragment_file=$(basename $bam_in |sed 's/.bam/.fragment.tsv/g')
+  samtools view CB_H3K27me3_flagged_rmPCR_RT_rmDup.bam | awk -v OFS="\t" '
+  function max(a, b) {
+    return a > b ? a: b
+  }
+  {gsub("XB:Z:","",$18); if($8==0){print $3,max(1,$4-50),$4+50,$18,1} else if($8>$4){print $3,$4,$8,$18,1} else if($4>$8){print $3,$8,$4,$18,1}}' > ${odir}/${fragment_file}.unsorted
+  
+  bedtools sort -i ${fragment_file}.unsorted > ${fragment_file}
+  rm -f  ${fragment_file}.unsorted
+  bgzip -f ${fragment_file}
+  tabix -b2 -e3 ${fragment_file} 
+
+  echo "Done !"
+}
+
+
 ## bam_to_bedGraph 
 #Generates a bedgraph for sushi plots from a BAM file
 #bam_to_bedGraph ${FLAGGED_RM_DUP_BAM} ${FLAGGED_RM_DUP_COUNT} ${FLAGGED_RM_DUP_BEDGRAPH} ${LOGS}
