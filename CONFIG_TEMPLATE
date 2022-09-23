@@ -9,7 +9,7 @@ BEDTOOLS_PATH = /bioinfo/local/build/Centos/bedtools/bedtools-2.27.1/bin/
 PYTHON_PATH = /bioinfo/local/build/Centos/python/python-2.7.13/bin/
 R_PATH = /bioinfo/local/build/Centos/R/R-3.5.0/bin/
 FASTX_PATH = /bioinfo/local/build/fastx_toolkit_0.0.13/
-STAR_PATH = /bioinfo/local/build/Centos/STAR/STAR-2.6.0c/bin/Linux_x86_64/
+STAR_PATH = /bioinfo/local/build/Centos/STAR/STAR-2.7.5a/bin/Linux_x86_64/
 BWA_PATH = /bioinfo/local/build/Centos/bwa/bwa-0.7.15/
 R_DOWNSTREAM = /data/users/pprompsy/GitLab/R_automated_scripts/scChIPseq_analysis/R_scChIP_seq_analysis.R
 
@@ -26,6 +26,11 @@ NB_PROC = 8
 ANNOT = {genome_assembly}
 DESIGN_TYPE = {design_type}
 MARK = {mark}
+
+#########################################################################
+## BCL TO FASTQ
+#########################################################################
+BCL2FASTQ_BASEMASK = {bcl2fastq_basemask}
 
 #########################################################################
 ## BARCODE MAPPING

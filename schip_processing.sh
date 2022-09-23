@@ -2,8 +2,8 @@
 
 ## Mapping Research Pipeline
 ## Copyleft 2017 Institut Curie
-## Author(s): Nicolas Servant
-## Contact: nicolas.servant@curie.fr
+## Author(s): Pacome Prompsy
+## Contact: pacome.prompsy@curie.fr
 ## This software is distributed without any guarantee under the terms of the CECILL License
 ## See the LICENCE file for details
 
@@ -12,7 +12,7 @@
 ## Outpout : R1 fastq with a barcode flag
 
 SOFT="schip_processing"
-VERSION="0.0.3"
+VERSION="scCutTag InDrop v0.0.1"
 ARGUMENTS=$@
 COMMAND=${1}
 
@@ -56,8 +56,9 @@ function help_func {
       echo 
       echo "${SOFT}.sh All"
       echo
-      echo "   -f|--forward R1_READ: forward fastq file"
-      echo "   -r|--reverse R2_READ: forward fastq file"
+      echo "   -b|--bcl BCL_DIR: base directory containing BCL files"
+      echo "   -g|--ngsName NGS_NAME: name of the sample in the sample sheet from NGS"
+      echo "   -S|--sampleSheet SAMPLE_SHEET: sample sheet in .csv from NGS"
       echo "   -c|--conf CONFIG: configuration file for ChIP processing"
       echo "   -o|--output OUTPUT: output folder"
       echo "   -n|--name NAME: name given to samples"
@@ -110,12 +111,12 @@ fi
 #Valid commands ?
 if [[ $COMMAND =~ "All" ]]
 then
-COMMAND="Barcoding+Trimming+Mapping+Filtering+Coverage+Counting+MQC+R_analysis"
+COMMAND="Fastq+Barcoding+Trimming+Mapping+Filtering+Coverage+Counting+MQC+R_analysis"
 fi
 
 MULT_OP=($(echo ${COMMAND} | sed "s|+| |g"))
 declare -A ALL_OP=()
-OPS="All Trimming Barcoding Mapping Filtering Coverage Counting MQC R_analysis GetConf --version --help"
+OPS="All Fastq Trimming Barcoding Mapping Filtering Coverage Counting MQC R_analysis GetConf --version --help"
 for OP in $OPS ; do ALL_OP+=( [$OP]=1 ) ; done
 
 #Unauthorized subcommand
@@ -132,8 +133,9 @@ if [[ -n "${TO_RUN[--version]}" ]]; then  echo "schip_processing.sh : single cel
 for arg in "$@"; do
   shift
   case "$arg" in
-      "--reverse") set -- "$@" "-r" ;;
-      "--forward") set -- "$@" "-f" ;;
+      "--bcl") set -- "$@" "-b" ;;
+      "--ngsName") set -- "$@" "-g" ;;
+      "--sampleSheet") set -- "$@" "-S" ;;
       "--output") set -- "$@" "-o" ;;
       "--conf")   set -- "$@" "-c" ;;
       "--name")   set -- "$@" "-n" ;;
@@ -155,16 +157,17 @@ for arg in "$@"; do
 done
 
 echo "COMMAND $COMMAND "
-if [[ ! $COMMAND =~ "Barcoding" && ! $COMMAND =~ "Trimming"  &&  ! $COMMAND =~ "Mapping"  && ! $COMMAND =~ "Filtering"  && ! $COMMAND =~ "Coverage" && ! $COMMAND =~ "Counting" && ! $COMMAND =~ "MQC" && ! $COMMAND =~ "R_analysis" && ! $COMMAND =~ "GetConf" ]] ; then usage; exit; fi
+if [[ ! $COMMAND =~ "Fastq" && ! $COMMAND =~ "Barcoding" && ! $COMMAND =~ "Trimming"  &&  ! $COMMAND =~ "Mapping"  && ! $COMMAND =~ "Filtering"  && ! $COMMAND =~ "Coverage" && ! $COMMAND =~ "Counting" && ! $COMMAND =~ "MQC" && ! $COMMAND =~ "R_analysis" && ! $COMMAND =~ "GetConf" ]] ; then usage; exit; fi
 
-if [[  $COMMAND =~ "Barcoding" || $COMMAND =~ "Trimming"  ||   $COMMAND =~ "Mapping"  ||  $COMMAND =~ "Filtering"  ||  $COMMAND =~ "Coverage" ||  $COMMAND =~ "Counting"  ||  $COMMAND =~ "MQC" ||  $COMMAND =~ "R_analysis" ]]
+if [[ $COMMAND =~ "Fastq" || $COMMAND =~ "Barcoding" || $COMMAND =~ "Trimming"  ||   $COMMAND =~ "Mapping"  ||  $COMMAND =~ "Filtering"  ||  $COMMAND =~ "Coverage" ||  $COMMAND =~ "Counting"  ||  $COMMAND =~ "MQC" ||  $COMMAND =~ "R_analysis" ]]
 then
   shift
-  while getopts "f:r:o:c:s:n:u:dvh" OPT
+  while getopts "b:g:S:o:c:s:n:u:dvh" OPT
   do
       case $OPT in
-          f) FORWARD=$OPTARG;;
-          r) REVERSE=$OPTARG;;
+          b) BCL_DIR=$OPTARG;;
+          g) NGS_NAME=$OPTARG;;
+          S) SAMPLE_SHEET=$OPTARG;;
           o) ODIR=$OPTARG;;
           c) CONF=$OPTARG;;
           s) DOWNSTREAM_ODIR=$OPTARG;;
@@ -228,15 +231,15 @@ fi
 
 
 #If -e is present, skip dataenginnering and process only downstream analysis
-echo "$FORWARD | $REVERSE | $CONF | $ODIR | $NAME"
-if [[ -z $FORWARD || -z $REVERSE || -z $CONF || -z $ODIR || -z $NAME ]]; then
+echo "$BCL_DIR | $NGS_NAME | $SAMPLE_SHEET | $CONF | $ODIR | $NAME"
+if [[ -z $NGS_NAME || -z $NGS_NAME || -z $SAMPLE_SHEET || -z $CONF || -z $ODIR || -z $NAME ]]; then
       echo "One of the arguments is empty, please fill all obligatory arguments."
       help_func All
       exit
 fi
 
 echo
-echo -e "Starting on $(date) ! Results are available in ${ODIR}"
+echo -e "Starting scCutTag InDrop on $(date) ! Results are available in ${ODIR}"
 echo
 
 PREFIX=$NAME
@@ -271,26 +274,30 @@ if [[ "${OVERRIDE_ARGS}" ]] ; then
 fi
 
 echo "Running pipeline for sample $NAME"
-  
+
+    ## 0- Create FASTQ files from BCL
+    if [[  -n "${TO_RUN[Fastq]}" ]]; then
+
+        echo -e "BCL to Fastq... \n"
+        bcl_to_fastq_func ${BCL_DIR} ${ODIR} ${SAMPLE_SHEET} ${NGS_NAME} ${PREFIX} ${BCL2FASTQ_BASEMASK} ${LOGDIR}
+       fi  
+   
+    INDEX=${ODIR}/fastqs/${PREFIX}.R2.fastq.gz
+
     ## 1- Align R2 reads on barcode indexes
     if [[  -n "${TO_RUN[Barcoding]}" ]]; then 
-      echo -e "Barcoding... \n"
-      barcode_index_mapping_func ${REVERSE} ${ODIR}/mapping/barcode ${PREFIX} ${LOGDIR}/barcode
+     	echo -e "Barcoding... \n"
+      barcode_index_mapping_func ${INDEX} ${ODIR}/mapping/barcode ${PREFIX} ${LOGDIR}/barcode
     fi
+   
     BARCODE_READS=${ODIR}/mapping/barcode/${PREFIX}_read_barcodes.txt
-    
-    ## 2-  Trim R2 reads for genome aligning	
-    MODE_TRIMMING='genome'
-    if [[  -n "${TO_RUN[Trimming]}" ]]; then
-      echo -e "Trimming... \n"
-      fastx_trimmer_func ${REVERSE} ${BARCODE_LINKER_LENGTH} ${ODIR}/trimming ${LOGDIR} ${MODE_TRIMMING} ${PREFIX}
-    fi
-    REVERSE_TRIMMED_G=${ODIR}/trimming/${PREFIX}_trimmed_G.R2.fastq.gz
-    
+    FORWARD=${ODIR}/fastqs/${PREFIX}.R1.fastq.gz      
+    REVERSE=${ODIR}/fastqs/${PREFIX}.R3.fastq.gz
+
     ## 3- Align R2 reads on genome indexes - paired end with R1 - (STAR)
     MAPPING_INDEX_STAR=${GENOME_IDX_PATH_STAR}
     MAPPING_OPTS_STAR=${GENOME_MAPPING_OPTS_STAR}
-    PAIRED_END=(${FORWARD} ${REVERSE_TRIMMED_G})
+    PAIRED_END=(${FORWARD} ${REVERSE})
     if [[  -n "${TO_RUN[Mapping]}" ]]; then
 
       echo -e "Mapping using $MAPPER... \n"
@@ -315,24 +322,25 @@ echo "Running pipeline for sample $NAME"
       GENOME_BAM_FLAGGED_rmPCR_RT=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT.bam
       
       ## 6-Remove duplicates by window (if R2 is unmapped) - prime (STAR)
-      remove_duplicates ${GENOME_BAM_FLAGGED_rmPCR_RT} ${ODIR}/mapping/ ${LOGDIR}
-      GENOME_BAM_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT_rmDup.bam
+      #remove_duplicates ${GENOME_BAM_FLAGGED_rmPCR_RT} ${ODIR}/mapping/ ${LOGDIR}
+      cp ${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT.count ${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT_rmDup.count
+      GENOME_BAM_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT.bam
       
       ## 6-bis Removing encode black regions
       if [[ ! -z ${BIN_PATH}/${ENCODE_BLACKLIST} && -e ${BIN_PATH}/${ENCODE_BLACKLIST} ]]; then
         filter_black_regions $GENOME_BAM_FLAGGED_RMDUP ${ODIR} ${LOGDIR}
       fi
     fi
-    GENOME_BAM_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT_rmDup.bam
-    GENOME_COUNT_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT_rmDup.count
+    GENOME_BAM_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT.bam
+    GENOME_COUNT_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT.count
     
     ## 7-Generate BedGraph file
     if [[  -n "${TO_RUN[Coverage]}" ]]; then
       echo -e "Coverage - BedGraph... \n"
       #bam_to_bedGraph ${GENOME_BAM_FLAGGED_RMDUP} ${GENOME_COUNT_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
       
-      echo -e "Coverage - scBED... \n"
-      bam_to_sc_bed ${GENOME_BAM_FLAGGED_RMDUP} ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
+      #echo -e "Coverage - scBED... \n"
+      #bam_to_sc_bed ${GENOME_BAM_FLAGGED_RMDUP} ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
       
       echo -e "Coverage - BigWigs... \n"
       bw_func ${GENOME_BAM_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
