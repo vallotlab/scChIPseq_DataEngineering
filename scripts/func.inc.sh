@@ -53,54 +53,67 @@ fi
 }
 
 
-## Concatenate Fastqs from 10X
+## Concatenate Single Cell Fastqs from Cellenone & Generate Barcode File
 ## $1 = fastq directory
 ## $2 = output directory for concatenated fastqs
-## $3 = log directory
-concatenate_fastqs_from_10X()
+## $3 = sample sheet in .csv format containing info on sample & file names
+## $4 = ngs name used for the sample in the sample sheet
+## $5 = final name to give the sample
+## $6 = log directory
+concatenate_fastqs_from_cellenone()
 { 
         fastq_dir=$1
         output_dir=$2
-        sample_name=$3
+	barcode_dir=$3
+	sample_sheet=$4
+        ngs_name=$5
+        final_name=$6
 
 
-        local log=$4/concatenate_fastqs_from_10X.log
-	echo -e "Concatenating Fastqs From 10X together..."
+        local log=$7/concatenate_fastqs_from_cellenone.log
+	echo -e "Concatenating Fastqs From Cellenone together..."
         echo -e "Logs: $log"
         echo
 
         mkdir -p $output_dir
 
-        echo "10X Fastq directory $fastq_dir" > $log
+        echo "Cellenone Fastq directory $fastq_dir" > $log
         echo "Concatenated Fastq directory $output_dir" >> $log
-  
-        # Remove any already existing FASTQ files
-        cmd="rm -f ${output_dir}/${sample_name}.R1.fastq.gz"
-        exec_cmd ${cmd} >> ${log} 2>&1
-        cmd="rm -f ${output_dir}/${sample_name}.R2.fastq.gz"
-        exec_cmd ${cmd} >> ${log} 2>&1
-        cmd="rm -f ${output_dir}/${sample_name}.R3.fastq.gz"
-        exec_cmd ${cmd} >> ${log} 2>&1
  
-        for i in ${fastq_dir}/*R1*.fastq.gz
-        do
-                cmd="cat ${i} >> ${output_dir}/${sample_name}.R1.fastq.gz"
-                exec_cmd ${cmd} >> ${log} 2>&1
-        done
-
-        for i in ${fastq_dir}/*R2*.fastq.gz
-        do
-                cmd="cat ${i} >> ${output_dir}/${sample_name}.R2.fastq.gz"
-                exec_cmd ${cmd} >> ${log} 2>&1
-        done
+	rm -f ${output_dir}/*.fastq.gz
  
-        for i in ${fastq_dir}*R3*.fastq.gz
-        do
-                cmd="cat ${i} >> ${output_dir}/${sample_name}.R3.fastq.gz"
-                exec_cmd ${cmd} >> ${log} 2>&1
-        done
+	concatenate()
+	{
+		# Function that concatenate R1 & R2 of all cells of 
+		# a sample.
+		prefix=$1
+		Final_name=$2
+		barcodeID=$3
+		out=$4
 
-	echo "Finished Concatenated Fastq" >> $log
+		cat ${prefix}.R1.fastq.gz >> ${out}/${Final_name}.R1.fastq.gz
+		cat ${prefix}.R2.fastq.gz >> ${out}/${Final_name}.R2.fastq.gz
+		gzip -cd ${prefix}.R1.fastq.gz | cut -d' ' -f1 | awk  -v barcode=$barcodeID -v OFS=" " 'NR%4==1{print substr($0,2,10000),barcode}' >> ${out}/${Final_name}_read_barcodes.unsorted.txt
+	}
+
+
+        cat $sample_sheet | while  read line ; do
+	        cellRunID=$(echo $line | cut -d'|' -f1)
+	        sampleName=$(echo $line | cut -d'|' -f2 | awk '{gsub("_[^_]*$","",$0); print $0}')
+	        if [[ $sampleName == $ngs_name ]];
+	        then
+                	prefix=${fastq_dir}/${cellRunID}/${cellRunID}
+	                echo $cellRunID $sampleName
+
+                	concatenate ${prefix} ${final_name} ${cellRunID} ${output_dir}
+		fi
+	done
+        
+	# Sort Read Barcodes
+	sort -T /scratch/ --parallel 8 -k1,1 ${output_dir}/${final_name}_read_barcodes.unsorted.txt > ${barcode_dir}/${final_name}_read_barcodes.txt
+             
+
+	echo "Finished Concatenated Fastq & Creating Barcode File" >> $log
 	echo "" >> $log
 
 }
@@ -868,9 +881,8 @@ bam_to_sc_bed() {
 '
 
   #Gzip
-  files=$(ls $odir/scBed_${count}/*.bed | head -n1)
-  if [ -f $files ];then
-  	cmd="for i in $odir/scBed_${count}/*.bed; do gzip -9 \$i; done"
+  if [ -f $odir/scBed*/*.bed ];then
+  	cmd="for i in $odir/scBed*/*.bed; do gzip -9 \$i; done"
   	exec_cmd ${cmd} >> ${log} 2>&1
   fi
   

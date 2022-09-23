@@ -56,7 +56,9 @@ function help_func {
       echo 
       echo "${SOFT}.sh All"
       echo
-      echo "   -i|--fastqDir FASTQDIR: The input directory containing the splitted fastq files from 10X. R1 and R3 files are genomic DNA. R2 file is the index containing the cell barcode information. If already concatenated, the directory containing the concatenated fastq files."
+      echo "   -i|--fastqDir FASTQDIR: The input directory containing the single cell FASTQs."
+      echo "   -g|--ngsName NGS_NAME: The prefix of the sample name given in the sample. This is the part before the last '_'. E.g. if in the sampleDescrition file the cell is named 'MM468_H1', the ngsName would be 'MM468' ."
+      echo "   -S|--sampleSheet SAMPLE_SHEET: The sample description file in .txt format containing sample and barcode information (DXXX.sampleDescription.txt), colmuns separated by '|'."
       echo "   -c|--conf CONFIG: configuration file for ChIP processing"
       echo "   -o|--output OUTPUT: output folder"
       echo "   -n|--name NAME: name given to samples"
@@ -109,12 +111,12 @@ fi
 #Valid commands ?
 if [[ $COMMAND =~ "All" ]]
 then
-COMMAND="Fastq+Barcoding+Trimming+Mapping+Filtering+Coverage+Counting+MQC+R_analysis"
+COMMAND="Barcoding+Trimming+Mapping+Filtering+Coverage+Counting+MQC+R_analysis"
 fi
 
 MULT_OP=($(echo ${COMMAND} | sed "s|+| |g"))
 declare -A ALL_OP=()
-OPS="All Fastq Trimming Barcoding Mapping Filtering Coverage Counting MQC R_analysis GetConf --version --help"
+OPS="All Trimming Barcoding Mapping Filtering Coverage Counting MQC R_analysis GetConf --version --help"
 for OP in $OPS ; do ALL_OP+=( [$OP]=1 ) ; done
 
 #Unauthorized subcommand
@@ -132,6 +134,8 @@ for arg in "$@"; do
   shift
   case "$arg" in
       "--fastqDir") set -- "$@" "-i" ;;
+      "--ngsName") set -- "$@" "-g" ;;
+      "--sampleSheet") set -- "$@" "-S" ;;
       "--output") set -- "$@" "-o" ;;
       "--conf")   set -- "$@" "-c" ;;
       "--name")   set -- "$@" "-n" ;;
@@ -153,15 +157,17 @@ for arg in "$@"; do
 done
 
 echo "COMMAND $COMMAND "
-if [[ ! $COMMAND =~ "Fastq" && ! $COMMAND =~ "Barcoding" && ! $COMMAND =~ "Trimming"  &&  ! $COMMAND =~ "Mapping"  && ! $COMMAND =~ "Filtering"  && ! $COMMAND =~ "Coverage" && ! $COMMAND =~ "Counting" && ! $COMMAND =~ "MQC" && ! $COMMAND =~ "R_analysis" && ! $COMMAND =~ "GetConf" ]] ; then usage; exit; fi
+if [[ ! $COMMAND =~ "Barcoding" && ! $COMMAND =~ "Trimming"  &&  ! $COMMAND =~ "Mapping"  && ! $COMMAND =~ "Filtering"  && ! $COMMAND =~ "Coverage" && ! $COMMAND =~ "Counting" && ! $COMMAND =~ "MQC" && ! $COMMAND =~ "R_analysis" && ! $COMMAND =~ "GetConf" ]] ; then usage; exit; fi
 
-if [[ $COMMAND =~ "Fastq" || $COMMAND =~ "Barcoding" || $COMMAND =~ "Trimming"  ||   $COMMAND =~ "Mapping"  ||  $COMMAND =~ "Filtering"  ||  $COMMAND =~ "Coverage" ||  $COMMAND =~ "Counting"  ||  $COMMAND =~ "MQC" ||  $COMMAND =~ "R_analysis" ]]
+if [[  $COMMAND =~ "Barcoding" || $COMMAND =~ "Trimming"  ||   $COMMAND =~ "Mapping"  ||  $COMMAND =~ "Filtering"  ||  $COMMAND =~ "Coverage" ||  $COMMAND =~ "Counting"  ||  $COMMAND =~ "MQC" ||  $COMMAND =~ "R_analysis" ]]
 then
   shift
-  while getopts "i:o:c:s:n:u:dvh" OPT
+  while getopts "i:g:S:o:c:s:n:u:dvh" OPT
   do
       case $OPT in
           i) FASTQ_DIR=$OPTARG;;
+          g) NGS_NAME=$OPTARG;;
+          S) SAMPLE_SHEET=$OPTARG;;
           o) ODIR=$OPTARG;;
           c) CONF=$OPTARG;;
           s) DOWNSTREAM_ODIR=$OPTARG;;
@@ -225,15 +231,15 @@ fi
 
 
 #If -e is present, skip dataenginnering and process only downstream analysis
-echo "$FASTQ_DIR | $CONF | $ODIR | $NAME"
-if [[ -z $FASTQ_DIR || -z $CONF || -z $ODIR || -z $NAME ]]; then
+echo "$FASTQ_DIR | $NGS_NAME | $SAMPLE_SHEET | $CONF | $ODIR | $NAME"
+if [[ -z $FASTQ_DIR || -z $NGS_NAME || -z $SAMPLE_SHEET || -z $CONF || -z $ODIR || -z $NAME ]]; then
       echo "One of the arguments is empty, please fill all obligatory arguments."
       help_func All
       exit
 fi
 
 echo
-echo -e "Starting on $(date) scCutTag 10X pipeline ! Results are available in ${ODIR}"
+echo -e "Starting on $(date) scCutTag Cellenone pipeline ! Results are available in ${ODIR}"
 echo
 
 PREFIX=$NAME
@@ -268,25 +274,19 @@ if [[ "${OVERRIDE_ARGS}" ]] ; then
 fi
 
 echo "Running pipeline for sample $NAME"
-
-    ## 0- Concatenating Input Fastqs from 10X...
-    if [[  -n "${TO_RUN[Fastq]}" ]]; then
-
-      echo -e "Concatenating Input Fastqs from 10X... \n"
-      concatenate_fastqs_from_10X ${FASTQ_DIR} ${ODIR}/fastqs ${PREFIX} ${LOGDIR}
-    fi
-
-   INDEX="${ODIR}/fastqs/${PREFIX}.R2.fastq.gz"
-
-    ## 1- Align Indexes reads on barcode indexes (whitelist 10X)
+  
+    ## 1- Concatenating Input Fastqs from Cellenone & Generating Barcode file
     if [[  -n "${TO_RUN[Barcoding]}" ]]; then 
-      echo -e "Barcoding... \n"	
-      barcode_index_mapping_func ${INDEX} ${ODIR}/mapping/barcode ${PREFIX} ${LOGDIR}/barcode
+
+      echo -e "Concatenating Input Fastqs from Cellenone & Generating Barcode file... \n"
+      mkdir -p ${ODIR}/mapping/barcode/
+      concatenate_fastqs_from_cellenone ${FASTQ_DIR} ${ODIR}/fastqs ${ODIR}/mapping/barcode/ ${SAMPLE_SHEET} ${NGS_NAME} ${PREFIX} ${LOGDIR}
+   
     fi
     
     BARCODE_READS=${ODIR}/mapping/barcode/${PREFIX}_read_barcodes.txt
     FORWARD="${ODIR}/fastqs/${PREFIX}.R1.fastq.gz"
-    REVERSE="${ODIR}/fastqs/${PREFIX}.R3.fastq.gz"
+    REVERSE="${ODIR}/fastqs/${PREFIX}.R2.fastq.gz"
 
     ## 3- Align R2 reads on genome indexes - paired end with R1 - (STAR)
     MAPPING_INDEX_STAR=${GENOME_IDX_PATH_STAR}
@@ -331,10 +331,10 @@ echo "Running pipeline for sample $NAME"
     ## 7-Generate BedGraph file
     if [[  -n "${TO_RUN[Coverage]}" ]]; then
       echo -e "Coverage - BedGraph... \n"
-      #bam_to_bedGraph ${GENOME_BAM_FLAGGED_RMDUP} ${GENOME_COUNT_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
+      bam_to_bedGraph ${GENOME_BAM_FLAGGED_RMDUP} ${GENOME_COUNT_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
       
-      #echo -e "Coverage - scBED... \n"
-      #bam_to_sc_bed ${GENOME_BAM_FLAGGED_RMDUP} ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
+      echo -e "Coverage - scBED... \n"
+      bam_to_sc_bed ${GENOME_BAM_FLAGGED_RMDUP} ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
       
       echo -e "Coverage - BigWigs... \n"
       bw_func ${GENOME_BAM_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
