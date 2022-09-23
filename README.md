@@ -11,7 +11,7 @@ The multiple steps involved in the pipeline are :
   
   
 ![]("www/scChIPseq_InDrop.jpg")
-<img src="www/scChIPseq_InDrop.jpg"  width="600" height="800">
+<img src="www/scChIPseq_InDrop.jpg"  width="650" height="683">
 
 # The Pipeline
   
