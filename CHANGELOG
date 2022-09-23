@@ -1,4 +1,16 @@
 ***********************************
+CHANGES IN VERSION 0.0.3.5
+
+NEW FEATURES
+
+   o After seeing some strange peaks in the profiles of several samples, we discovered that 
+multimappers were not properly removed. In order to remove the multimappers correctly,
+we changed STAR mapping parameters and added filtering of ENCODE black regions v2. A pdf file
+is resuming this process and explaining the choice of mapping options.
+
+
+
+***********************************
 CHANGES IN VERSION 0.0.3.4
 
 NEW FEATURES

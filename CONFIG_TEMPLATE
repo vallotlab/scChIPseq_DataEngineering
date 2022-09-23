@@ -10,6 +10,7 @@ PYTHON_PATH = /bioinfo/local/build/Centos/python/python-2.7.13/bin/
 R_PATH = /bioinfo/local/build/Centos/R/R-3.5.0/bin/
 FASTX_PATH = /bioinfo/local/build/fastx_toolkit_0.0.13/
 STAR_PATH = /bioinfo/local/build/Centos/STAR/STAR-2.6.0c/bin/Linux_x86_64/
+BWA_PATH = /bioinfo/local/build/Centos/bwa/bwa-0.7.15/
 R_DOWNSTREAM = /data/users/pprompsy/GitLab/R_automated_scripts/scChIPseq_analysis/R_scChIP_seq_analysis.R
 
 #########################################################################
@@ -38,9 +39,20 @@ BARCODE_BOWTIE_IDX_PATH = {barcode_bowtie_index_path}
 #########################################################################
 ## GENOME MAPPING
 #########################################################################
-
+# by default, override with --override MAPPER="BWA" for bwa mem
+MAPPER="STAR"
+#STAR
 GENOME_MAPPING_OPTS_STAR = {genome_mapping_options_star}
-GENOME_IDX_PATH_STAR = {genome_index_path}
+GENOME_IDX_PATH_STAR = {genome_index_path_star}
+
+#BWA MEM
+GENOME_MAPPING_OPTS_BWA = {genome_mapping_options_bwa}
+GENOME_IDX_PATH_BWA = {genome_index_path_bwa}
+
+#BOWTIE MAPPING (disabled by default, override with "STRINGENT_MULTIMAP = TRUE")
+STRINGENT_MULTIMAP = FALSE
+GENOME_MAPPING_OPTS_BOWTIE1 = "-S -m1"
+GENOME_IDX_PATH_BOWTIE1 = {genome_index_path_bowtie1}
 
 #########################################################################
 ## DUPLICATE REMOVAL 
@@ -50,6 +62,9 @@ REMOVE_RT_DUPLICATES = {remove_RT_duplicates}
 REMOVE_BY = {remove_by}
 DUPLICATES_WINDOW = {window_size}
 
+#Filtering
+ENCODE_BLACKLIST = {encode_blacklist}
+
 #########################################################################
 ## COUNTING
 #########################################################################
@@ -58,7 +73,6 @@ MIN_COUNT_PER_BARCODE_AFTER_RMDUP = {min_count_per_barcode_after_rmdup}
 BIN_SIZE = {bin_size}
 BED_FEATURES = {bed_features}
 TMP_DIR = /scratch/
-ENCODE_BLACKLIST = 
 
 #########################################################################
 ## DOWNSTREAM ANALYSIS

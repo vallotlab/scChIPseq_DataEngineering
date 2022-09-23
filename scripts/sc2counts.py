@@ -16,7 +16,7 @@ from bx.intervals.intersection import Intersecter, Interval
     
 def timing(function, *args):
     """                              
-    Run a fonction and eturn the run time and the result of the function
+    Run a fonction and return the run time and the result of the function
     If the function requires arguments, those can be passed in
     """
     startTime = time.time()
@@ -25,7 +25,7 @@ def timing(function, *args):
     return result
 
 
-def load_BED(in_file, verbose=False):
+def load_BED(in_file, featuresOverCoord=False, verbose=False):
     """
     Read a BED file and store the intervals in a tree
     Intervals are zero-based objects. The output object is a hash table with
@@ -47,16 +47,18 @@ def load_BED(in_file, verbose=False):
                 print "## %d features loaded ..." % nline
             nline +=1
             bedtab = line.split("\t")
-            try:
-                chromosome, start, end, name = bedtab[:4]
-            except ValueError:
-                print >> sys.stderr, "Warning : wrong input format in line", nline,". Not a BED file !?"
-                continue
+            chromosome, start, end = bedtab[:3]
+            if len(bedtab)>3 & featuresOverCoord==True:
+                name = bedtab[4]
 
             # BED files are zero-based, half-open as Intervals objects
             start = int(start) 
             end = int(end)
-            featureNames.append(name.strip())
+            if featuresOverCoord==True:
+                featureNames.append(name.strip())
+            else:
+                featureNames.append(chromosome + ":" + str(start) + "-" + str(end))
+            
             if chromosome in x:
                 tree = x[chromosome]
                 tree.add_interval(Interval(start, end, value={'pos' : nline - 1}))
@@ -237,7 +239,7 @@ def select_mat(x, nreads=500, verbose=False):
     return idx
 
 
-def save2BinMatrix(x, colnames, ofile, chromsize, chrom_idx, bsize, verbose=False, rmzeros=False):
+def save2BinMatrix(x, colnames, ofile, chromsize, chrom_idx, bsize, filt, verbose=False, rmzeros=False):
     """
     Write the count table into a txt file without taking too much RAM
     Note that most of the args are used to convert bin coordinate into genomic coordinates
@@ -246,6 +248,9 @@ def save2BinMatrix(x, colnames, ofile, chromsize, chrom_idx, bsize, verbose=Fals
         print "## Writting outpout file ..."
 
     cx = x.tocsr()
+    ofile = re.sub("\.tsv|\.txt","_filt_"+ str(filt) +".tsv",ofile)
+    if os.path.exists(ofile):
+        os.remove(ofile)
     handle = open(ofile,'ab')
     colnames = np.array([[" "] + colnames])
     np.savetxt(handle, colnames, '%s', delimiter="\t")
@@ -265,7 +270,7 @@ def save2BinMatrix(x, colnames, ofile, chromsize, chrom_idx, bsize, verbose=Fals
     handle.close()
 
 
-def save2FeatMatrix(x, colnames, ofile, rownames, verbose=False, rmzeros=False):
+def save2FeatMatrix(x, colnames, ofile, rownames, filt, verbose=False, rmzeros=False):
     """
     Write the count table into a txt file without taking too much RAM
     """
@@ -273,6 +278,11 @@ def save2FeatMatrix(x, colnames, ofile, rownames, verbose=False, rmzeros=False):
         print "## Writting outpout file ..."
 
     cx = x.tocsr()
+    ofile = re.sub("\.tsv|\.txt","_filt_"+ str(filt) +".tsv",ofile)
+    if os.path.exists(ofile):
+        os.remove(ofile)
+    if os.path.exists(ofile + ".gz"):
+        os.remove(ofile + ".gz")
     handle = open(ofile,'ab')
     colnames = np.array([[" "] + colnames])
     np.savetxt(handle, colnames, '%s', delimiter="\t")
@@ -298,7 +308,7 @@ if __name__ == "__main__":
     reads_counter = 0
     non_overlapping_counter = 0
     allbarcodes = []
-
+   
     # Reads args
     parser = argparse.ArgumentParser(prog='sc2counts.py', description='''
     Transform a BAM file to a count table based on barcode information and genomic bins/features
@@ -312,13 +322,14 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output', help="Count table file. Default: counts.tsv", default="counts.tsv", type=str)
     parser.add_argument('-s', '--barcodes', help="Number of barcodes in the BAM file. Default: Extracted from the BAM 'CO' field", type=int)
     parser.add_argument('-t', '--tag', help="Barcode Tag. Default: XB", default="XB", type=str)
-    parser.add_argument('-f', '--filt', help="Select barcodes with at least FILT counts. Default: None", default=1, type=int)
+    parser.add_argument('-f', '--filt', help="Select barcodes with at least FILT counts. Default: None", default="1", type=str)
     parser.add_argument('-w', '--useWholeRead', help="Use the whole read in the count instead of the 5' end. Default: False", default=False, action="store_true")
     parser.add_argument('-r', '--rmZeros', help="Do not export bins/features with only zeros in the count table. Default: False", default=False, action="store_true")
+    parser.add_argument('-F', '--featuresOverCoord', help="When counting on BED file, write feature name (column 4 of BED) as rownames of count matrix instead of coordinates. Default: False", default=False, action="store_true")
     parser.add_argument('-v', '--verbose', help="", action="store_true")
  
     args = parser.parse_args()
-
+ 
     # check args
     if os.path.isfile(args.output):
         print "Error: Output file '" + args.output + "' already exist. Stop."
@@ -341,6 +352,7 @@ if __name__ == "__main__":
         print "## useWholeReads =", args.useWholeRead
         print "## rmZeros =", args.rmZeros
         print "## verbose =", args.verbose
+        print "## featuresOverCoord =", args.featuresOverCoord
         print
 
     # Read the SAM/BAM file
@@ -370,7 +382,7 @@ if __name__ == "__main__":
         chromsize_bins = get_chromosome_bins(chromsize, args.bin)
         N_bins = sum(chromsize_bins.values())
     elif args.bed is not None:
-        feat_bins = load_BED(args.bed, args.verbose)
+        feat_bins = load_BED(args.bed, args.featuresOverCoord, args.verbose)
         N_bins = len(feat_bins[1]) 
  
     if args.verbose:
@@ -419,16 +431,18 @@ if __name__ == "__main__":
 
     ## filter mat
     if args.filt is not None:
-        sel_idx = select_mat(x=counts, nreads=args.filt, verbose=args.verbose)
-        counts = counts[:, sel_idx]
-        allbarcodes = np.array(allbarcodes)[sel_idx]
-        allbarcodes = allbarcodes.tolist()
+        filters = map(int, args.filt.split(","))
+        for filt in filters:
+            sel_idx = select_mat(x=counts, nreads=filt, verbose=args.verbose)
+            counts_reduced = counts[:, sel_idx]
+            allbarcodes_reduced = np.array(allbarcodes)[sel_idx]
+            allbarcodes_reduced = allbarcodes_reduced.tolist()
 
-    ## save Matrix
-    if args.bin is not None:
-        save2BinMatrix(counts, allbarcodes, args.output, chromsize, chromsize_bins, args.bin, args.verbose, rmzeros=args.rmZeros)
-    elif args.bed is not None:
-        save2FeatMatrix(counts, allbarcodes, args.output, feat_bins[1], args.verbose, rmzeros=args.rmZeros)
+            ## save Matrix
+            if args.bin is not None:
+                save2BinMatrix(counts_reduced, allbarcodes_reduced, args.output, chromsize, chromsize_bins, args.bin, filt, args.verbose, rmzeros=args.rmZeros)
+            elif args.bed is not None:
+                save2FeatMatrix(counts_reduced, allbarcodes_reduced, args.output, feat_bins[1], filt ,args.verbose, rmzeros=args.rmZeros)
 
 
 

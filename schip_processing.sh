@@ -155,9 +155,9 @@ for arg in "$@"; do
 done
 
 echo "COMMAND $COMMAND "
-if [[ ! $COMMAND =~ "Barcoding" && ! $COMMAND =~ "Trimming"  &&  ! $COMMAND =~ "Mapping"  && ! $COMMAND =~ "Filtering"  && ! $COMMAND =~ "Coverage"  && ! $COMMAND =~ "MQC" && ! $COMMAND =~ "R_analysis" && ! $COMMAND =~ "GetConf" ]] ; then usage; exit; fi
+if [[ ! $COMMAND =~ "Barcoding" && ! $COMMAND =~ "Trimming"  &&  ! $COMMAND =~ "Mapping"  && ! $COMMAND =~ "Filtering"  && ! $COMMAND =~ "Coverage" && ! $COMMAND =~ "Counting" && ! $COMMAND =~ "MQC" && ! $COMMAND =~ "R_analysis" && ! $COMMAND =~ "GetConf" ]] ; then usage; exit; fi
 
-if [[  $COMMAND =~ "Barcoding" || $COMMAND =~ "Trimming"  ||   $COMMAND =~ "Mapping"  ||  $COMMAND =~ "Filtering"  ||  $COMMAND =~ "Coverage"  ||  $COMMAND =~ "MQC" ||  $COMMAND =~ "R_analysis" ]]
+if [[  $COMMAND =~ "Barcoding" || $COMMAND =~ "Trimming"  ||   $COMMAND =~ "Mapping"  ||  $COMMAND =~ "Filtering"  ||  $COMMAND =~ "Coverage" ||  $COMMAND =~ "Counting"  ||  $COMMAND =~ "MQC" ||  $COMMAND =~ "R_analysis" ]]
 then
   shift
   while getopts "f:r:o:c:s:n:u:dvh" OPT
@@ -234,6 +234,11 @@ if [[ -z $FORWARD || -z $REVERSE || -z $CONF || -z $ODIR || -z $NAME ]]; then
       help_func All
       exit
 fi
+
+echo
+echo -e "Starting on $(date) ! Results are available in ${ODIR}"
+echo
+
 PREFIX=$NAME
 CMD_LINE="$@"
 LOGDIR=${ODIR}/logs
@@ -287,8 +292,15 @@ echo "Running pipeline for sample $NAME"
     MAPPING_OPTS_STAR=${GENOME_MAPPING_OPTS_STAR}
     PAIRED_END=(${FORWARD} ${REVERSE_TRIMMED_G})
     if [[  -n "${TO_RUN[Mapping]}" ]]; then
-      echo -e "Mapping... \n"
+
+      echo -e "Mapping using $MAPPER... \n"
       star_func "$(echo ${PAIRED_END[@]})" ${ODIR}/mapping/genome ${LOGDIR}/genome ${PREFIX}
+
+      if [[  $STRINGENT_MULTIMAP == "TRUE" ]]; then
+        #Bowtie mapping to remove multimappers & filtering 
+        MAPPING_IDX_BOWTIE1=${GENOME_IDX_PATH_BOWTIE1}
+        bowtie_func ${FORWARD} ${ODIR}/mapping/genome ${LOGDIR}/genome ${PREFIX} ${ODIR}/mapping/genome/Aligned.out.sam
+      fi
     fi
     GENOME_BAM=${ODIR}/mapping/genome/${PREFIX}.bam
     
@@ -304,16 +316,25 @@ echo "Running pipeline for sample $NAME"
       
       ## 6-Remove duplicates by window (if R2 is unmapped) - prime (STAR)
       remove_duplicates ${GENOME_BAM_FLAGGED_rmPCR_RT} ${ODIR}/mapping/ ${LOGDIR}
+      GENOME_BAM_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT_rmDup.bam
+      
+      ## 6-bis Removing encode black regions
+      if [[ ! -z ${ENCODE_BLACKLIST} && -e ${ENCODE_BLACKLIST} ]]; then
+        filter_black_regions $GENOME_BAM_FLAGGED_RMDUP ${ODIR} ${LOGDIR}
+      fi
     fi
     GENOME_BAM_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT_rmDup.bam
     GENOME_COUNT_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT_rmDup.count
     
     ## 7-Generate BedGraph file
     if [[  -n "${TO_RUN[Coverage]}" ]]; then
-      echo -e "Coverage... \n"
-      bam_to_bedGraph ${GENOME_BAM_FLAGGED_RMDUP} ${GENOME_COUNT_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
-      echo "Not an unbound, generating bigwig & counting"
-      ## 8- Generate bigwig files
+      echo -e "Coverage - BedGraph... \n"
+      #bam_to_bedGraph ${GENOME_BAM_FLAGGED_RMDUP} ${GENOME_COUNT_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
+      
+      echo -e "Coverage - scBED... \n"
+      bam_to_sc_bed ${GENOME_BAM_FLAGGED_RMDUP} ${MIN_COUNT_PER_BARCODE_AFTER_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
+      
+      echo -e "Coverage - BigWigs... \n"
       bw_func ${GENOME_BAM_FLAGGED_RMDUP} ${ODIR}/tracks/ ${LOGDIR}
     fi
     
@@ -351,7 +372,9 @@ if [[  -n "${TO_RUN[R_analysis]}" ]]; then
     for bin in ${BIN_SIZE}
     do
     	DATASET_NAME=${PREFIX}_${bin}
-    	COUNT_MAT=${PREFIX}_flagged_rmPCR_RT_rmDup_counts_${bin}.tsv
+    	#Take only the latest filter to run R downstream analysis
+    	FILTER_THRESHOLD=$(echo $MIN_COUNT_PER_BARCODE_AFTER_RMDUP | sed 's/.*,//g' )
+    	COUNT_MAT=${PREFIX}_flagged_rmPCR_RT_rmDup_counts_${bin}_filt_${FILTER_THRESHOLD}.tsv
     	
     	barcode_count=$(awk 'NR==1{print $0}' ${ODIR}/counts/${COUNT_MAT} | wc -w )
     	
@@ -371,7 +394,9 @@ if [[  -n "${TO_RUN[R_analysis]}" ]]; then
     do
     	bed=$(basename $bed | sed 's/.bed//')
     	DATASET_NAME=${PREFIX}_${bed}
-    	COUNT_MAT=${PREFIX}_flagged_rmPCR_RT_rmDup_counts_${bed}.tsv
+    	#Take only the latest filter to run R downstream analysis
+    	FILTER_THRESHOLD=$(echo $MIN_COUNT_PER_BARCODE_AFTER_RMDUP | sed 's/.*,//g' )
+    	COUNT_MAT=${PREFIX}_flagged_rmPCR_RT_rmDup_counts_${bed}_filt_${FILTER_THRESHOLD}.tsv
     	
     	barcode_count=$(awk 'NR==1{print $0}' ${ODIR}/counts/${COUNT_MAT} | wc -w )
     	
@@ -388,6 +413,6 @@ if [[  -n "${TO_RUN[R_analysis]}" ]]; then
 fi
 
 echo
-echo -e "Completed on ${when}! Results are available in ${ODIR}"
+echo -e "Completed on $(date) ! Results are available in ${ODIR}"
 echo
 
