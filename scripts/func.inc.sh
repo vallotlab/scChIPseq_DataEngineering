@@ -53,63 +53,58 @@ fi
 }
 
 
-## Create FASTQs from BCLs and reverse the index
-## 
-## $1 = BCL directory
-## $2 = Output directory
-## $3 = SampleSheet (SampleSheet.csv obtained from the KDI)
-## $4 = NGS Sample Name
-## $5 Location of the reads and indexes: Y101,I8,Y69,Y51 --> First 101bp of genomic DNA (first part of read),
-##  then 8bp of AR adapter, then 69bp of barcode DNA, then 51bp of genomic DNA (second part of read)
-## $6 = log directory
-bcl_to_fastq_func()
-{
-
-    BCL_dir=$1
-    output_dir=$2
-    samplesheet=$3
-    ngs_name=$4
-    final_name=$5
-    use_bases_mask=$6
+## Concatenate Fastqs from 10X
+## $1 = fastq directory
+## $2 = output directory for concatenated fastqs
+## $3 = log directory
+concatenate_fastqs_from_10X()
+{ 
+        fastq_dir=$1
+        output_dir=$2
+        sample_name=$3
 
 
-    local log=$7/bcl_to_fastq.log
-    echo -e "Running BCL to FASTQ ..."
-    echo -e "Logs: $log"
-    echo
+        local log=$4/concatenate_fastqs_from_10X.log
+	echo -e "Concatenating Fastqs From 10X together..."
+        echo -e "Logs: $log"
+        echo
 
-    rm -rf ${output_dir}/BCL_to_FASTQ/
-    rm -rf ${output_dir}/fastqs/
+        mkdir -p $output_dir
 
-    mkdir -p ${output_dir}/BCL_to_FASTQ/
-    mkdir -p ${output_dir}/fastqs/
+        echo "10X Fastq directory $fastq_dir" > $log
+        echo "Concatenated Fastq directory $output_dir" >> $log
+  
+        # Remove any already existing FASTQ files
+        cmd="rm -f ${output_dir}/${sample_name}.R1.fastq.gz"
+        exec_cmd ${cmd} >> ${log} 2>&1
+        cmd="rm -f ${output_dir}/${sample_name}.R2.fastq.gz"
+        exec_cmd ${cmd} >> ${log} 2>&1
+        cmd="rm -f ${output_dir}/${sample_name}.R3.fastq.gz"
+        exec_cmd ${cmd} >> ${log} 2>&1
+ 
+        for i in ${fastq_dir}/*R1*.fastq.gz
+        do
+                cmd="cat ${i} >> ${output_dir}/${sample_name}.R1.fastq.gz"
+                exec_cmd ${cmd} >> ${log} 2>&1
+        done
 
-    echo "Running BCL to FASTQ ..." > ${log}
-    echo >> ${log}
+        for i in ${fastq_dir}/*R2*.fastq.gz
+        do
+                cmd="cat ${i} >> ${output_dir}/${sample_name}.R2.fastq.gz"
+                exec_cmd ${cmd} >> ${log} 2>&1
+        done
+ 
+        for i in ${fastq_dir}*R3*.fastq.gz
+        do
+                cmd="cat ${i} >> ${output_dir}/${sample_name}.R3.fastq.gz"
+                exec_cmd ${cmd} >> ${log} 2>&1
+        done
 
-    cmd="/bioinfo/local/build/Centos/bcl2fastq/bcl2fastq2-v2.20/bin/bcl2fastq --no-lane-splitting --loading-threads ${NB_PROC} --processing-threads ${NB_PROC} --writing-threads ${NB_PROC} --runfolder-dir ${BCL_dir} --output-dir ${output_dir}/BCL_to_FASTQ/ --sample-sheet ${samplesheet} --mask-short-adapter-reads 0 --use-bases-mask ${use_bases_mask}"
-    exec_cmd ${cmd} >> ${log} 2>&1
-
-    project=$(grep "Sample_Project," ${samplesheet}  -A1 | tail -n1 | cut -d',' -f7)
-
-    # Reverse Index containing cell barcodes for correct mapping
-    cmd="/bioinfo/local/build/fastx_toolkit_0.0.13/fastx_reverse_complement -Q33 -i <(gzip -cd ${output_dir}/BCL_to_FASTQ/${project}/${ngs_name}/*R2_001.fastq.gz) -z -o $output_dir/fastqs/${final_name}.R2.fastq.gz"
-    exec_cmd ${cmd} >> ${log} 2>&1
-
-    # Move Fastqs
-    cmd="mv ${output_dir}/BCL_to_FASTQ/${project}/${ngs_name}/*R1_001.fastq.gz $output_dir/fastqs/${final_name}.R1.fastq.gz"
-    exec_cmd ${cmd} >> ${log} 2>&1
-
-    cmd="mv ${output_dir}/BCL_to_FASTQ/${project}/${ngs_name}/*R3_001.fastq.gz $output_dir/fastqs/${final_name}.R3.fastq.gz"
-    exec_cmd ${cmd} >> ${log} 2>&1
-
-#   cmd="rm -rf ${output_dir}/BCL_to_FASTQ/"
-#  exec_cmd ${cmd} >> ${log} 2>&1
-
-   echo
-   echo "Finished creating fastqs !"
+	echo "Finished Concatenated Fastq" >> $log
+	echo "" >> $log
 
 }
+
 
 ## Trim reads
 ## -m <mode>
@@ -381,45 +376,18 @@ prefix=$3
     echo -e "Running Bowtie2 index (barcode) mapping ..."
     echo -e "Logs: $log"
     echo
-  
-  #Beads type [Hifibio | LBC] -> different Index lengths [20 + 4 | 16 + 4]
-  if [[ ${BARCODE_LENGTH} -eq 60 ]]
-  	then
-  	echo -e "Short barcode :LBC"
-      start_index_1=6
-  	  start_index_2=26
-  	  start_index_3=46
-  	  size_index=16
-         else
-  	echo -e "Long barcode : Hifibio "
-      start_index_1=1
-    	start_index_2=25
-    	start_index_3=49
-    	size_index=20
-  fi
 
-##Extract three indexes from reads : 1 - 16 = index 1 ; 21 - 36 = index 2; 41 - 56 = index 3
+start_index_1=1
+size_index=16
+
+##Extract 1 barcode from reads : 1 - 16 = index 1
 if [[ ${read2} =~ \.gz ]]; then
-         cmd="gzip -cd  $read2 | awk -v start_index_1=$start_index_1 -v size_index=$size_index  'NR%4==1{print \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_1,size_index)}' > ${out}/read_indexes_1.fasta"
+         cmd="gzip -cd  $read2 | awk -v start_index_1=$start_index_1 -v size_index=$size_index  'NR%4==1{print \">\"substr(\$1,2)}; NR%4==2{print \$0}' > ${out}/read_indexes_1.fasta"
      else
-         cmd="cat $read2 | awk -v start_index_1=$start_index_1 -v size_index=$size_index  'NR%4==1{print \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_1,size_index)}' > ${out}/read_indexes_1.fasta"
- fi
-  exec_cmd ${cmd} > ${log} 2>&1
-  
- if [[ ${read2} =~ \.gz ]]; then
-         cmd="gzip -cd $read2 | awk -v start_index_2=$start_index_2 -v size_index=$size_index 'NR%4==1{print  \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_2,size_index)}' > ${out}/read_indexes_2.fasta"
-     else
-         cmd="cat $read2 | awk -v start_index_2=$start_index_2 -v size_index=$size_index 'NR%4==1{print  \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_2,size_index)}' > ${out}/read_indexes_2.fasta"
- fi
-  exec_cmd ${cmd} >> ${log} 2>&1
+         cmd="cat $read2 | awk -v start_index_1=$start_index_1 -v size_index=$size_index  'NR%4==1{print \">\"substr(\$1,2)}; NR%4==2{print \$0}' > ${out}/read_indexes_1.fasta"
 
- if [[ ${read2} =~ \.gz ]]; then
-       cmd="gzip -cd  $read2 | awk -v start_index_3=$start_index_3 -v size_index=$size_index 'NR%4==1{print \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_3,size_index)}' > ${out}/read_indexes_3.fasta"
-    else
- cmd="cat $read2 | awk -v start_index_3=$start_index_3 -v size_index=$size_index 'NR%4==1{print \">\"substr(\$0,2)}; NR%4==2{print substr(\$0,start_index_3,size_index)}' > ${out}/read_indexes_3.fasta"    
-fi  
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
+fi
+  exec_cmd ${cmd} >> ${log} 2>&1  
   #Map INDEXES 1 against Index1 library
   cmd="bowtie2 -x ${BARCODE_BOWTIE_IDX_PATH}1 -f ${out}/read_indexes_1.fasta ${BARCODE_MAPPING_OPTS} -p ${NB_PROC} > ${out}/index_1_bowtie2.sam"
   exec_cmd ${cmd} >> ${log} 2>&1
@@ -428,67 +396,27 @@ fi
   cmd="awk -v out=\"${out}/\" '/XS/{next} \$2!=4{print \$1,\$3;count++} ;END{print count > out\"/count_index_1\"}' ${out}/index_1_bowtie2.sam > ${out}/reads_matching_index_1.txt"
   exec_cmd ${cmd} >> ${log} 2>&1
   
-  #Map INDEXES 2 against Index2 library
-  cmd="bowtie2 -x ${BARCODE_BOWTIE_IDX_PATH}2 -f ${out}/read_indexes_2.fasta ${BARCODE_MAPPING_OPTS} -p ${NB_PROC} > ${out}/index_2_bowtie2.sam"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
-  #Keep only reads that were matched by a unique index 2 + counting matched index2
-  cmd="awk -v out=\"${out}/\" '/XS/{next} \$2!=4{print \$1,\$3;count++} ;END{print count > out\"count_index_2\"}' ${out}/index_2_bowtie2.sam > ${out}/reads_matching_index_2.txt"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
-  #Map INDEXES 3 against Index3 library
-  cmd="bowtie2 -x ${BARCODE_BOWTIE_IDX_PATH}3 -f ${out}/read_indexes_3.fasta ${BARCODE_MAPPING_OPTS} -p ${NB_PROC} > ${out}/index_3_bowtie2.sam"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
-  #Keep only reads that were matched by a unique index 3 + counting matched index3
-  cmd="awk -v out=\"${out}/\" '/XS/{next} \$2!=4{print \$1,\$3;count++} ;END{print count > out\"count_index_3\"}' ${out}/index_3_bowtie2.sam > ${out}/reads_matching_index_3.txt"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
   ##Sort indexes by read name: 
   cmd="sort -T ${TMP_DIR} --parallel=${NB_PROC} -k1,1 ${out}/reads_matching_index_1.txt > ${out}/reads_matching_index_1_sorted.txt"
   exec_cmd ${cmd} >> ${log} 2>&1
   
   cmd="rm ${out}/reads_matching_index_1.txt"
   exec_cmd ${cmd} >> ${log} 2>&1
-  
-  cmd="sort -T ${TMP_DIR} --parallel=${NB_PROC} -k1,1 ${out}/reads_matching_index_2.txt > ${out}/reads_matching_index_2_sorted.txt"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
-  cmd="rm ${out}/reads_matching_index_2.txt"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
-  cmd="sort -T ${TMP_DIR} --parallel=${NB_PROC} -k1,1 ${out}/reads_matching_index_3.txt > ${out}/reads_matching_index_3_sorted.txt"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
-  cmd="rm ${out}/reads_matching_index_3.txt"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
-  #Join indexes 1 & 2 together (inner join)
-  cmd="join -t$' ' -1 1 -2 1 ${out}/reads_matching_index_1_sorted.txt ${out}/reads_matching_index_2_sorted.txt > ${out}/tmp"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
-  #Count matched index 1 & 2
-  cmd="echo \$(wc -l ${out}/tmp) | cut -d' ' -f1 > ${out}/count_index_1_2"
-  exec_cmd ${cmd} >> ${log} 2>&1	
-  
-  #Join indexes (1 & 2) & 3 together to recompose full barcode (inner join)
-  cmd="join -t$' ' -1 1 -2 1 ${out}/tmp ${out}/reads_matching_index_3_sorted.txt > ${out}/final"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
+   
   #Reformat & count matched index (1 & 2 & 3) <=> barcode
-  cmd="awk -v out=\"${out}/\" '{print substr(\$1,1)\"\tBC\"substr(\$2,2)substr(\$3,2)substr(\$4,2);count++} ;END{print count > out\"count_index_1_2_3\"}' ${out}/final > ${out}/${prefix}_read_barcodes.txt"
+  cmd="awk -v out=\"${out}/\" '{print \$1\"\t\"\$2;count++} ;END{print count > out\"count_index_1_2_3\"}' ${out}/reads_matching_index_1_sorted.txt > ${out}/${prefix}_read_barcodes.txt"
   exec_cmd ${cmd} >> ${log} 2>&1
   
   ##Write logs
   cmd="n_index_1=\$(cat ${out}/count_index_1)"
   exec_cmd ${cmd} >> ${log} 2>&1
-  cmd="n_index_2=\$(cat ${out}/count_index_2)"
+  cmd="n_index_2=0"
   exec_cmd ${cmd} >> ${log} 2>&1
-  cmd="n_index_3=\$(cat ${out}/count_index_3)"
+  cmd="n_index_3=0"
   exec_cmd ${cmd} >> ${log} 2>&1
-  cmd="n_index_1_2=\$(cat ${out}/count_index_1_2)"
+  cmd="n_index_1_2=\$(cat ${out}/count_index_1)"
   exec_cmd ${cmd} >> ${log} 2>&1
-  cmd="n_index_1_2_3=\$(cat ${out}/count_index_1_2_3)"
+  cmd="n_index_1_2_3=\$(cat ${out}/count_index_1)"
   exec_cmd ${cmd} >> ${log} 2>&1
   
   echo "## Number of matched indexes 1: $n_index_1" >> ${log}
@@ -498,7 +426,7 @@ fi
   echo "## Number of matched barcodes: $n_index_1_2_3" >> ${log}
   
   ## Remove all non used files
-  cmd="rm -f ${out}/*.sam ${out}/read* ${out}/tmp ${out}/final ${out}/count"
+  cmd="rm -f ${out}/*.sam ${out}/read* ${out}/tmp"
   exec_cmd ${cmd} >> ${log} 2>&1
 }
 
@@ -942,10 +870,10 @@ bam_to_sc_bed() {
   #Gzip
   files=$(ls $odir/scBed_${count}/*.bed | head -n1)
   if [ -f $files ];then
-        cmd="for i in $odir/scBed_${count}/*.bed; do gzip -9 \$i; done"
-        exec_cmd ${cmd} >> ${log} 2>&1
+  	cmd="for i in $odir/scBed_${count}/*.bed; do gzip -9 \$i; done"
+  	exec_cmd ${cmd} >> ${log} 2>&1
   fi
-
+  
   cmd="rm -f ${prefix}_tmp_header.sam ${prefix}_tmp.sorted.bam"
   exec_cmd ${cmd} >> ${log} 2>&1
 

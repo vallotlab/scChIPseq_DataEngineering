@@ -12,7 +12,7 @@
 ## Outpout : R1 fastq with a barcode flag
 
 SOFT="schip_processing"
-VERSION="scCutTag InDrop v0.0.1"
+VERSION="scCutTag 10X v0.0.1"
 ARGUMENTS=$@
 COMMAND=${1}
 
@@ -56,9 +56,7 @@ function help_func {
       echo 
       echo "${SOFT}.sh All"
       echo
-      echo "   -b|--bcl BCL_DIR: base directory containing BCL files"
-      echo "   -g|--ngsName NGS_NAME: name of the sample in the sample sheet from NGS"
-      echo "   -S|--sampleSheet SAMPLE_SHEET: sample sheet in .csv from NGS"
+      echo "   -i|--fastqDir FASTQDIR: The input directory containing the splitted fastq files from 10X. R1 and R3 files are genomic DNA. R2 file is the index containing the cell barcode information. If already concatenated, the directory containing the concatenated fastq files."
       echo "   -c|--conf CONFIG: configuration file for ChIP processing"
       echo "   -o|--output OUTPUT: output folder"
       echo "   -n|--name NAME: name given to samples"
@@ -133,9 +131,7 @@ if [[ -n "${TO_RUN[--version]}" ]]; then  echo "schip_processing.sh : single cel
 for arg in "$@"; do
   shift
   case "$arg" in
-      "--bcl") set -- "$@" "-b" ;;
-      "--ngsName") set -- "$@" "-g" ;;
-      "--sampleSheet") set -- "$@" "-S" ;;
+      "--fastqDir") set -- "$@" "-i" ;;
       "--output") set -- "$@" "-o" ;;
       "--conf")   set -- "$@" "-c" ;;
       "--name")   set -- "$@" "-n" ;;
@@ -162,12 +158,10 @@ if [[ ! $COMMAND =~ "Fastq" && ! $COMMAND =~ "Barcoding" && ! $COMMAND =~ "Trimm
 if [[ $COMMAND =~ "Fastq" || $COMMAND =~ "Barcoding" || $COMMAND =~ "Trimming"  ||   $COMMAND =~ "Mapping"  ||  $COMMAND =~ "Filtering"  ||  $COMMAND =~ "Coverage" ||  $COMMAND =~ "Counting"  ||  $COMMAND =~ "MQC" ||  $COMMAND =~ "R_analysis" ]]
 then
   shift
-  while getopts "b:g:S:o:c:s:n:u:dvh" OPT
+  while getopts "i:o:c:s:n:u:dvh" OPT
   do
       case $OPT in
-          b) BCL_DIR=$OPTARG;;
-          g) NGS_NAME=$OPTARG;;
-          S) SAMPLE_SHEET=$OPTARG;;
+          i) FASTQ_DIR=$OPTARG;;
           o) ODIR=$OPTARG;;
           c) CONF=$OPTARG;;
           s) DOWNSTREAM_ODIR=$OPTARG;;
@@ -231,15 +225,15 @@ fi
 
 
 #If -e is present, skip dataenginnering and process only downstream analysis
-echo "$BCL_DIR | $NGS_NAME | $SAMPLE_SHEET | $CONF | $ODIR | $NAME"
-if [[ -z $NGS_NAME || -z $NGS_NAME || -z $SAMPLE_SHEET || -z $CONF || -z $ODIR || -z $NAME ]]; then
+echo "$FASTQ_DIR | $CONF | $ODIR | $NAME"
+if [[ -z $FASTQ_DIR || -z $CONF || -z $ODIR || -z $NAME ]]; then
       echo "One of the arguments is empty, please fill all obligatory arguments."
       help_func All
       exit
 fi
 
 echo
-echo -e "Starting scCutTag InDrop on $(date) ! Results are available in ${ODIR}"
+echo -e "Starting on $(date) scCutTag 10X pipeline ! Results are available in ${ODIR}"
 echo
 
 PREFIX=$NAME
@@ -275,24 +269,24 @@ fi
 
 echo "Running pipeline for sample $NAME"
 
-    ## 0- Create FASTQ files from BCL
+    ## 0- Concatenating Input Fastqs from 10X...
     if [[  -n "${TO_RUN[Fastq]}" ]]; then
 
-        echo -e "BCL to Fastq... \n"
-        bcl_to_fastq_func ${BCL_DIR} ${ODIR} ${SAMPLE_SHEET} ${NGS_NAME} ${PREFIX} ${BCL2FASTQ_BASEMASK} ${LOGDIR}
-       fi  
-   
-    INDEX=${ODIR}/fastqs/${PREFIX}.R2.fastq.gz
+      echo -e "Concatenating Input Fastqs from 10X... \n"
+      concatenate_fastqs_from_10X ${FASTQ_DIR} ${ODIR}/fastqs ${PREFIX} ${LOGDIR}
+    fi
 
-    ## 1- Align R2 reads on barcode indexes
+   INDEX="${ODIR}/fastqs/${PREFIX}.R2.fastq.gz"
+
+    ## 1- Align Indexes reads on barcode indexes (whitelist 10X)
     if [[  -n "${TO_RUN[Barcoding]}" ]]; then 
-     	echo -e "Barcoding... \n"
+      echo -e "Barcoding... \n"	
       barcode_index_mapping_func ${INDEX} ${ODIR}/mapping/barcode ${PREFIX} ${LOGDIR}/barcode
     fi
-   
+    
     BARCODE_READS=${ODIR}/mapping/barcode/${PREFIX}_read_barcodes.txt
-    FORWARD=${ODIR}/fastqs/${PREFIX}.R1.fastq.gz      
-    REVERSE=${ODIR}/fastqs/${PREFIX}.R3.fastq.gz
+    FORWARD="${ODIR}/fastqs/${PREFIX}.R1.fastq.gz"
+    REVERSE="${ODIR}/fastqs/${PREFIX}.R3.fastq.gz"
 
     ## 3- Align R2 reads on genome indexes - paired end with R1 - (STAR)
     MAPPING_INDEX_STAR=${GENOME_IDX_PATH_STAR}
