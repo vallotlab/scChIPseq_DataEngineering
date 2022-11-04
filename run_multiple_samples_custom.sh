@@ -74,7 +74,7 @@ do
   OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_MOUSE_scCutTag_InDrop_H3K4ME3
   fi
 
-  ./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
+  #./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
  
   OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/scCutTag/${ASSEMBLY}/${FINAL_NAME}
   READ_1=/data/tmp/scCUT_TAG_dev/scCutTag_InDrop/FASTQ/scRNAseq_T/${DATASET_NUMBER}/${DATASET_NAME}_S1_R1_001.fastq.gz
