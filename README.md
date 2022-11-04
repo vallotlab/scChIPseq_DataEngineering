@@ -1,17 +1,19 @@
-# Single-cell CUT&Tag InDrop pipeline
+# Single-cell ChIP-seq pipeline
 
-This data engineering pipeline is designed to treat single-cell CUT&Tag InDrop
-with protocol design from the Institut Curie SingleCellOmics Platform and Vallot Lab.
-The dataset starts from raw BCL sequencing files to exploitable output such
-as count matrices, coverage file and report.  
-  
+This data engineering pipeline is designed to treat single-cell chromatin Immuno-Precipitation 
+sequencing from raw reads (fastq, paired end) to exploitable count matrix.
+The multiple steps involved in the pipeline are :
+
+
+
+
 # Simplifed scheme of the pipeline
   
-![]("www/scCutTag_InDrop.jpg")
-<p align="center">
-<img src="www/scCutTag_InDrop.jpg"  width="580" height="764">
-</p>
   
+![]("www/scChIPseq_InDrop.jpg")
+<p align="center">
+<img src="www/scChIPseq_InDrop.jpg"  width="650" height="683">
+</p>
 # The Pipeline
   
   

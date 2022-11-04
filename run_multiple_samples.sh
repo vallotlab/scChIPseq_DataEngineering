@@ -42,53 +42,47 @@ echo "$mem"
 
 
 #CREATE CONFIG FILE : HUMAN, BEADS CURIE, IP, BED = 20k +50k
-cd /data/users/pprompsy/GitLab/scCutTag_InDrop
+cd /data/users/pprompsy/GitLab/scChIPseq_InDrop/
 
 while IFS= read -r line
 do
-  BCL_DIR=$(echo "$line" | cut -d',' -f1)
-  NGS_NAME=$(echo "$line" | cut -d',' -f2)
+  DATASET_NAME=$(echo "$line" | cut -d',' -f1)
+  DATASET_NUMBER=$(echo "$line" | cut -d',' -f2)
   FINAL_NAME=$(echo "$line" | cut -d',' -f3)
   ASSEMBLY=$(echo "$line" | cut -d',' -f4)
   MARK=$(echo "$line" | cut -d',' -f5)
-
   if [[ $MARK == "h3k27me3" && $ASSEMBLY == "hg38" ]]
   then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_scCutTag_InDrop_K27
+  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_LBC_K27
   fi
   if [[ $MARK == "h3k4me3" && $ASSEMBLY == "hg38" ]]
   then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_scCutTag_InDrop_K4
+  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_LBC_K4
   fi
   if [[ $MARK == "unbound" && $ASSEMBLY == "hg38" ]]
   then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_scCutTag_InDrop_UNBOUND
+  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_LBC_UNBOUND
   fi
   DESIGN_TYPE=LBC
   if [[ $MARK == "h3k27me3" && $ASSEMBLY == "mm10" ]]
   then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_MOUSE_scCutTag_InDrop_H3K27ME3
+  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_MOUSE_LBC_H3K27ME3
   fi
   if [[ $MARK == "h3k4me3" && $ASSEMBLY == "mm10" ]]
   then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_MOUSE_scCutTag_InDrop_H3K4ME3
+  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_MOUSE_LBC_H3K4ME3
   fi
 
   ./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
  
-  OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/scCutTag/${ASSEMBLY}/${FINAL_NAME}
-  SAMPLE_SHEET=$(ls ${BCL_DIR}/*.csv)
-  echo $NGS_NAME
-  NGS_NAME=$(grep "Sample_Project," ${SAMPLE_SHEET} -A100 | awk -v FS="," -v ngs_name=${NGS_NAME} '{for(i=1;i<=NF;i++){if($i==ngs_name){print $1}}}')
-  echo "$NGS_NAME"  
-
-  echo $SAMPLE_SHEET
-  echo "-"  
-  echo "NGS_NAME=$NGS_NAME - FINAL_NAME=$FINAL_NAME"
-  echo 
-
- cho "cd /data/users/pprompsy/GitLab/scCutTag_InDrop; ./schip_processing.sh All --bcl ${BCL_DIR} --sampleSheet ${SAMPLE_SHEET} --ngsName ${NGS_NAME} -c ${OUTPUT_CONFIG}  -o ${OUTPUT_DIR} --name ${FINAL_NAME}" # | qsub -l "nodes=1:ppn=8,mem=60gb" -N job_${FINAL_NAME}_${ASSEMBLY}
-
+  OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/${ASSEMBLY}/${FINAL_NAME}
+  DOWNSTREAM_DIR=/data/kdi_prod/project_result/1184/02.00/results/${ASSEMBLY}/
+  
+  READ1=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/${DATASET_NAME}/${DATASET_NAME}.R1.fastq.gz
+  READ2=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/${DATASET_NAME}/${DATASET_NAME}.R2.fastq.gz
+  mem=$(get_mem $READ1)
+  echo $mem
+  echo "cd /data/users/pprompsy/GitLab/scChIPseq_InDrop/; ./schip_processing.sh All -f ${READ1} -r ${READ2} -c ${OUTPUT_CONFIG}  -o ${OUTPUT_DIR} --name ${FINAL_NAME}" | qsub -l "nodes=1:ppn=8,mem=${mem}gb" -N job_${FINAL_NAME}_${ASSEMBLY}
 
 done < "$sample_sheet"
 
