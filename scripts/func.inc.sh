@@ -62,52 +62,32 @@ fi
 ## $5 Location of the reads and indexes: Y101,I8,Y69,Y51 --> First 101bp of genomic DNA (first part of read),
 ##  then 8bp of AR adapter, then 69bp of barcode DNA, then 51bp of genomic DNA (second part of read)
 ## $6 = log directory
-bcl_to_fastq_func()
+reverse_fastq_func()
 {
 
-    BCL_dir=$1
-    output_dir=$2
-    samplesheet=$3
-    ngs_name=$4
-    final_name=$5
-    use_bases_mask=$6
+    output_dir=$1
+    index=$2
+    final_name=$3
 
 
-    local log=$7/bcl_to_fastq.log
-    echo -e "Running BCL to FASTQ ..."
+    local log=$4/reverse_fastq_func.log
+    echo -e "Running Reverse FASTQ ..."
     echo -e "Logs: $log"
     echo
 
-    rm -rf ${output_dir}/BCL_to_FASTQ/
     rm -rf ${output_dir}/fastqs/
 
-    mkdir -p ${output_dir}/BCL_to_FASTQ/
     mkdir -p ${output_dir}/fastqs/
 
-    echo "Running BCL to FASTQ ..." > ${log}
+    echo "Running reversing FASTQ ..." > ${log}
     echo >> ${log}
 
-    cmd="/bioinfo/local/build/Centos/bcl2fastq/bcl2fastq2-v2.20/bin/bcl2fastq --no-lane-splitting --loading-threads ${NB_PROC} --processing-threads ${NB_PROC} --writing-threads ${NB_PROC} --runfolder-dir ${BCL_dir} --output-dir ${output_dir}/BCL_to_FASTQ/ --sample-sheet ${samplesheet} --mask-short-adapter-reads 0 --use-bases-mask ${use_bases_mask}"
-    exec_cmd ${cmd} >> ${log} 2>&1
-
-    project=$(grep "Sample_Project," ${samplesheet}  -A1 | tail -n1 | cut -d',' -f7)
-
     # Reverse Index containing cell barcodes for correct mapping
-    cmd="/bioinfo/local/build/fastx_toolkit_0.0.13/fastx_reverse_complement -Q33 -i <(gzip -cd ${output_dir}/BCL_to_FASTQ/${project}/${ngs_name}/*R2_001.fastq.gz) -z -o $output_dir/fastqs/${final_name}.R2.fastq.gz"
+    cmd="/bioinfo/local/build/fastx_toolkit_0.0.13/fastx_reverse_complement -Q33 -i <(gzip -cd $index) -z -o $output_dir/fastqs/${final_name}.R2.fastq.gz"
     exec_cmd ${cmd} >> ${log} 2>&1
-
-    # Move Fastqs
-    cmd="mv ${output_dir}/BCL_to_FASTQ/${project}/${ngs_name}/*R1_001.fastq.gz $output_dir/fastqs/${final_name}.R1.fastq.gz"
-    exec_cmd ${cmd} >> ${log} 2>&1
-
-    cmd="mv ${output_dir}/BCL_to_FASTQ/${project}/${ngs_name}/*R3_001.fastq.gz $output_dir/fastqs/${final_name}.R3.fastq.gz"
-    exec_cmd ${cmd} >> ${log} 2>&1
-
-#   cmd="rm -rf ${output_dir}/BCL_to_FASTQ/"
-#  exec_cmd ${cmd} >> ${log} 2>&1
 
    echo
-   echo "Finished creating fastqs !"
+   echo "Finished reversing fastqs !"
 
 }
 

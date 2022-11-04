@@ -279,7 +279,7 @@ echo "Running pipeline for sample $NAME"
     if [[  -n "${TO_RUN[Fastq]}" ]]; then
 
         echo -e "BCL to Fastq... \n"
-        bcl_to_fastq_func ${BCL_DIR} ${ODIR} ${SAMPLE_SHEET} ${NGS_NAME} ${PREFIX} ${BCL2FASTQ_BASEMASK} ${LOGDIR}
+        reverse_fastq_func ${ODIR} ${INDEX} ${PREFIX} ${LOGDIR}
        fi  
    
     INDEX=${ODIR}/fastqs/${PREFIX}.R2.fastq.gz
