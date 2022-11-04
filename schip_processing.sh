@@ -56,9 +56,9 @@ function help_func {
       echo 
       echo "${SOFT}.sh All"
       echo
-      echo "   -b|--bcl BCL_DIR: base directory containing BCL files"
-      echo "   -g|--ngsName NGS_NAME: name of the sample in the sample sheet from NGS"
-      echo "   -S|--sampleSheet SAMPLE_SHEET: sample sheet in .csv from NGS"
+      echo "   -f|--forward R1_READ: forward fastq file"
+      echo "   -r|--reverse R3_READ: reverse fastq file"
+      echo "   -i|--index R2_READ: index (cell barcode) fastq file"
       echo "   -c|--conf CONFIG: configuration file for ChIP processing"
       echo "   -o|--output OUTPUT: output folder"
       echo "   -n|--name NAME: name given to samples"
@@ -111,12 +111,12 @@ fi
 #Valid commands ?
 if [[ $COMMAND =~ "All" ]]
 then
-COMMAND="Fastq+Barcoding+Trimming+Mapping+Filtering+Coverage+Counting+MQC+R_analysis"
+COMMAND="Fastq+Barcoding+Mapping+Filtering+Coverage+Counting+MQC+R_analysis"
 fi
 
 MULT_OP=($(echo ${COMMAND} | sed "s|+| |g"))
 declare -A ALL_OP=()
-OPS="All Fastq Trimming Barcoding Mapping Filtering Coverage Counting MQC R_analysis GetConf --version --help"
+OPS="All Fastq Barcoding Mapping Filtering Coverage Counting MQC R_analysis GetConf --version --help"
 for OP in $OPS ; do ALL_OP+=( [$OP]=1 ) ; done
 
 #Unauthorized subcommand
@@ -133,9 +133,9 @@ if [[ -n "${TO_RUN[--version]}" ]]; then  echo "schip_processing.sh : single cel
 for arg in "$@"; do
   shift
   case "$arg" in
-      "--bcl") set -- "$@" "-b" ;;
-      "--ngsName") set -- "$@" "-g" ;;
-      "--sampleSheet") set -- "$@" "-S" ;;
+      "--forward") set -- "$@" "-f" ;;
+      "--reverse") set -- "$@" "-r" ;;
+      "--index") set -- "$@" "-i" ;;
       "--output") set -- "$@" "-o" ;;
       "--conf")   set -- "$@" "-c" ;;
       "--name")   set -- "$@" "-n" ;;
@@ -157,17 +157,17 @@ for arg in "$@"; do
 done
 
 echo "COMMAND $COMMAND "
-if [[ ! $COMMAND =~ "Fastq" && ! $COMMAND =~ "Barcoding" && ! $COMMAND =~ "Trimming"  &&  ! $COMMAND =~ "Mapping"  && ! $COMMAND =~ "Filtering"  && ! $COMMAND =~ "Coverage" && ! $COMMAND =~ "Counting" && ! $COMMAND =~ "MQC" && ! $COMMAND =~ "R_analysis" && ! $COMMAND =~ "GetConf" ]] ; then usage; exit; fi
+if [[ ! $COMMAND =~ "Fastq" && ! $COMMAND =~ "Barcoding" &&  ! $COMMAND =~ "Mapping"  && ! $COMMAND =~ "Filtering"  && ! $COMMAND =~ "Coverage" && ! $COMMAND =~ "Counting" && ! $COMMAND =~ "MQC" && ! $COMMAND =~ "R_analysis" && ! $COMMAND =~ "GetConf" ]] ; then usage; exit; fi
 
-if [[ $COMMAND =~ "Fastq" || $COMMAND =~ "Barcoding" || $COMMAND =~ "Trimming"  ||   $COMMAND =~ "Mapping"  ||  $COMMAND =~ "Filtering"  ||  $COMMAND =~ "Coverage" ||  $COMMAND =~ "Counting"  ||  $COMMAND =~ "MQC" ||  $COMMAND =~ "R_analysis" ]]
+if [[ $COMMAND =~ "Fastq" || $COMMAND =~ "Barcoding"  ||   $COMMAND =~ "Mapping"  ||  $COMMAND =~ "Filtering"  ||  $COMMAND =~ "Coverage" ||  $COMMAND =~ "Counting"  ||  $COMMAND =~ "MQC" ||  $COMMAND =~ "R_analysis" ]]
 then
   shift
-  while getopts "b:g:S:o:c:s:n:u:dvh" OPT
+  while getopts "f:r:i:g:S:o:c:s:n:u:dvh" OPT
   do
       case $OPT in
-          b) BCL_DIR=$OPTARG;;
-          g) NGS_NAME=$OPTARG;;
-          S) SAMPLE_SHEET=$OPTARG;;
+          f) FORWARD=$OPTARG;;
+          r) REVERSE=$OPTARG;;
+          i) INDEX=$OPTARG;;
           o) ODIR=$OPTARG;;
           c) CONF=$OPTARG;;
           s) DOWNSTREAM_ODIR=$OPTARG;;
@@ -231,8 +231,8 @@ fi
 
 
 #If -e is present, skip dataenginnering and process only downstream analysis
-echo "$BCL_DIR | $NGS_NAME | $SAMPLE_SHEET | $CONF | $ODIR | $NAME"
-if [[ -z $NGS_NAME || -z $NGS_NAME || -z $SAMPLE_SHEET || -z $CONF || -z $ODIR || -z $NAME ]]; then
+echo "$FORWARD | $REVERSE | $INDEX  | $CONF | $ODIR | $NAME"
+if [[ -z $FORWARD || -z $REVERSE || -z $INDEX || -z $CONF || -z $ODIR || -z $NAME ]]; then
       echo "One of the arguments is empty, please fill all obligatory arguments."
       help_func All
       exit
@@ -278,7 +278,7 @@ echo "Running pipeline for sample $NAME"
     ## 0- Create FASTQ files from BCL
     if [[  -n "${TO_RUN[Fastq]}" ]]; then
 
-        echo -e "BCL to Fastq... \n"
+        echo -e "Reversing the index fastq... \n"
         reverse_fastq_func ${ODIR} ${INDEX} ${PREFIX} ${LOGDIR}
        fi  
    
@@ -351,7 +351,7 @@ echo "Running pipeline for sample $NAME"
         echo -e "Counting... \n"
         ## 9- Use the R1 bam with the barcode flag to generate the count table (sc2counts.py)
         time make_counts ${GENOME_BAM_FLAGGED_RMDUP} ${ODIR}/counts/ ${ODIR}/mapping/ ${LOGDIR}
-	time bam_to_fragment_file ${GENOME_BAM_FLAGGED_RMDUP} ${ODIR}/counts/
+	    time bam_to_fragment_file ${GENOME_BAM_FLAGGED_RMDUP} ${ODIR}/counts/
       else
         echo "Is an unbound, skipping generating bigwig & counting, going directly to reporting"
       fi
