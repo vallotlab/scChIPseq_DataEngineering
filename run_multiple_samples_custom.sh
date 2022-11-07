@@ -75,13 +75,14 @@ do
   fi
 
   #./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
+
  
   OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/scCutTag/${ASSEMBLY}/${FINAL_NAME}
-  READ_1=/data/tmp/scCUT_TAG_dev/scCutTag_InDrop/FASTQ/scRNAseq_T/${DATASET_NUMBER}/${DATASET_NAME}_S1_R1_001.fastq.gz
-  READ_2=/data/tmp/scCUT_TAG_dev/scCutTag_InDrop/FASTQ/scRNAseq_T/${DATASET_NUMBER}/${DATASET_NAME}_S1_R2_001.fastq.gz
-  READ_3=/data/tmp/scCUT_TAG_dev/scCutTag_InDrop/FASTQ/scRNAseq_T/${DATASET_NUMBER}/${DATASET_NAME}_S1_R3_001.fastq.gz
+  READ_1=/data/tmp/scCUT_TAG_dev/scCutTag_InDrop/FASTQ/scRNAseq_T/${DATASET_NUMBER}/${DATASET_NAME}_R1_001.fastq.gz
+  READ_2=/data/tmp/scCUT_TAG_dev/scCutTag_InDrop/FASTQ/scRNAseq_T/${DATASET_NUMBER}/${DATASET_NAME}_R2_001.fastq.gz
+  READ_3=/data/tmp/scCUT_TAG_dev/scCutTag_InDrop/FASTQ/scRNAseq_T/${DATASET_NUMBER}/${DATASET_NAME}_R3_001.fastq.gz
 
-echo "cd /data/users/pprompsy/GitLab/scCutTag_InDrop; ./schip_processing.sh All --forward ${READ_1} --reverse ${READ_3} --index ${READ_2} -c ${OUTPUT_CONFIG}  -o ${OUTPUT_DIR} --name ${FINAL_NAME}" # | qsub -l "nodes=1:ppn=8,mem=60gb" -N job_${FINAL_NAME}_${ASSEMBLY}
+echo "cd /data/users/pprompsy/GitLab/scCutTag_InDrop; ./schip_processing.sh Mapping+Filtering+Coverage+Counting+MQC+R_analysis --forward ${READ_1} --reverse ${READ_3} --index ${READ_2} -c ${OUTPUT_CONFIG}  -o ${OUTPUT_DIR} --name ${FINAL_NAME}" | qsub -l "nodes=1:ppn=8,mem=60gb" -N job_${FINAL_NAME}_${ASSEMBLY}
 
 
 done < "$sample_sheet"
