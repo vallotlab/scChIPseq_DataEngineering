@@ -291,9 +291,7 @@ echo "Running pipeline for sample $NAME"
     fi
    
     BARCODE_READS=${ODIR}/mapping/barcode/${PREFIX}_read_barcodes.txt
-    FORWARD=${ODIR}/fastqs/${PREFIX}.R1.fastq.gz      
-    REVERSE=${ODIR}/fastqs/${PREFIX}.R3.fastq.gz
-
+    
     ## 3- Align R2 reads on genome indexes - paired end with R1 - (STAR)
     MAPPING_INDEX_STAR=${GENOME_IDX_PATH_STAR}
     MAPPING_OPTS_STAR=${GENOME_MAPPING_OPTS_STAR}
@@ -323,7 +321,7 @@ echo "Running pipeline for sample $NAME"
       
       ## 6-Remove duplicates by window (if R2 is unmapped) - prime (STAR)
       #remove_duplicates ${GENOME_BAM_FLAGGED_rmPCR_RT} ${ODIR}/mapping/ ${LOGDIR}
-      cp ${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT.count ${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT_rmDup.count
+      cp ${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT.count ${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT_rmDup.count # fake the original output for multiQC only ! 
       GENOME_BAM_FLAGGED_RMDUP=${ODIR}/mapping/${PREFIX}_flagged_rmPCR_RT.bam
       
       ## 6-bis Removing encode black regions

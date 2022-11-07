@@ -315,24 +315,13 @@ star_func()
        fi
    fi
 
-   ## sample_id
-   if [ ! -z ${SAMPLE_ID} ]; then
-       cmd_id="--outSAMattrRGline ID:${SAMPLE_ID} PL:ILLUMINA"
-   else
-       cmd_id=""
-   fi
-
    ## Run Mapping
    local out=$2
    mkdir -p ${out}
    
-   gzip -cd ${inputs[1]} > ${out}/tmp.R2.fastq 
-   gzip -cd ${inputs[0]} > ${out}/tmp.R1.fastq
-
-   cmd="STAR --runMode alignReads --runThreadN ${NB_PROC} ${MAPPING_OPTS_STAR} --readFilesIn ${out}/tmp.R1.fastq ${out}/tmp.R2.fastq --genomeDir ${MAPPING_INDEX_STAR} --outFileNamePrefix ${out}/"
+     cmd="STAR --runMode alignReads --runThreadN ${NB_PROC} ${MAPPING_OPTS_STAR} --readFilesIn ${cmd_in} --genomeDir ${MAPPING_INDEX_STAR} --outFileNamePrefix ${out}/"
    exec_cmd ${cmd} > ${log} 2>&1
    
-   rm ${out}/tmp.R1.fastq ${out}/tmp.R2.fastq
    #Reconvert to BAM
    cmd="samtools view -@ ${NB_PROC} -bS ${out}/Aligned.out.sam > ${out_prefix}.bam"
    exec_cmd ${cmd} >> ${log} 2>&1
