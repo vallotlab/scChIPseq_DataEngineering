@@ -1,5 +1,6 @@
 # Single-cell ChIP-seq pipeline
 
+
 This data engineering pipeline is designed to treat single-cell chromatin Immuno-Precipitation 
 sequencing from raw reads (fastq, paired end) to exploitable count matrix.
 The multiple steps involved in the pipeline are :
