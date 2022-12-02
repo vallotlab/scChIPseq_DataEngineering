@@ -53,26 +53,13 @@ do
   ASSEMBLY=$(echo "$line" | cut -d',' -f4)
   MARK=$(echo "$line" | cut -d',' -f5)
 
-  if [[ $MARK == "h3k27me3" && $ASSEMBLY == "hg38" ]]
+  if [[ $ASSEMBLY == "hg38" ]]
   then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_scCutTag_10X_K27
+  OUTPUT_CONFIG=/data/tmp/gjouault/results/CONFIG_HUMAN_scCutTag_10X_K27
   fi
-  if [[ $MARK == "h3k4me3" && $ASSEMBLY == "hg38" ]]
+  if [[ $ASSEMBLY == "mm10" ]]
   then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_scCutTag_10X_K4
-  fi
-  if [[ $MARK == "unbound" && $ASSEMBLY == "hg38" ]]
-  then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_scCutTag_10X_UNBOUND
-  fi
-  DESIGN_TYPE=LBC
-  if [[ $MARK == "h3k27me3" && $ASSEMBLY == "mm10" ]]
-  then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_MOUSE_scCutTag_10X_H3K27ME3
-  fi
-  if [[ $MARK == "h3k4me3" && $ASSEMBLY == "mm10" ]]
-  then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_MOUSE_scCutTag_10X_H3K4ME3
+  OUTPUT_CONFIG=/data/tmp/gjouault/results/CONFIG_MOUSE_scCutTag_10X_H3K27ME3
   fi
 
   echo $DESIGN_TYPE
@@ -85,7 +72,7 @@ do
   OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/scCutTag/${ASSEMBLY}/${FINAL_NAME}
   FASTQ_DIR=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/fastqs/${DATASET_NAME}/
 
-echo "cd ~/GitLab/scCutTag_10X/; ./schip_processing.sh Barcoding+Mapping+Filtering+Coverage+Counting+MQC -i ${FASTQ_DIR} -c ${OUTPUT_CONFIG} -o ${OUTPUT_DIR} --name ${FINAL_NAME}" # | qsub -l "nodes=1:ppn=8,mem=60gb" -N job_${FINAL_NAME}_${ASSEMBLY}
+echo "cd ~/GitLab/scCutTag_10X/; ./schip_processing.sh All -i ${FASTQ_DIR} -c ${OUTPUT_CONFIG} -o ${OUTPUT_DIR} --name ${FINAL_NAME}" # | qsub -l "nodes=1:ppn=8,mem=60gb" -N job_${FINAL_NAME}_${ASSEMBLY}
 
 done < "$sample_sheet"
 
