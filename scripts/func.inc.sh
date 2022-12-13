@@ -960,8 +960,6 @@ prefix=$4
 bin_path=$5
 arguments=$6
 bin_name=$7
-R_downstream_dir="$(dirname ${R_DOWNSTREAM})"
-echo ${R_downstream_dir}
 
  ## logs
     local log=$2/add_info_to_log.log
@@ -1011,15 +1009,6 @@ if [[ -d ${DOWNSTREAM_ODIR} ]]; then
   cmd="mkdir -p ${odir}/.data_analysis_run/"
   exec_cmd ${cmd} >> ${log} 2>&1
 
-  cmd="cp ${R_downstream_dir}/R_scChIP_seq_analysis.R ${odir}/.data_analysis_run/"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
-  cmd="cp -r ${R_downstream_dir}/Modules/ ${odir}/.data_analysis_run/"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
-  cmd="cp ${R_downstream_dir}/report_scChIPseq_analysis.Rmd ${odir}/.data_analysis_run/"
-  exec_cmd ${cmd} >> ${log} 2>&1
-  
   cmd="echo '${bin_name} ${arguments}' > ${odir}/.data_engineering_run/call.sh"
   exec_cmd ${cmd} >> ${log} 2>&1
 fi

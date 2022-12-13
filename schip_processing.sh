@@ -364,57 +364,6 @@ fi
 ## 10- Run Downstream analysis with default parameters
 export PATH=/bioinfo/local/build/Centos/bedtools/bedtools-2.25.0/bin/:$PATH:/bioinfo/local/build/MACS2_2.0.10/bin/
 
-if [[  -n "${TO_RUN[R_analysis]}" ]]; then 
-    echo -e "R_analysis... \n"
-    if [[ -z $CONF || -z $ODIR ]]; then
-        help_func All
-        exit
-    fi
-    
-    #For each count matrix bin size
-    for bin in ${BIN_SIZE}
-    do
-    	DATASET_NAME=${PREFIX}_${bin}
-    	#Take only the latest filter to run R downstream analysis
-    	FILTER_THRESHOLD=$(echo $MIN_COUNT_PER_BARCODE_AFTER_RMDUP | sed 's/.*,//g' )
-    	COUNT_MAT=${PREFIX}_flagged_rmPCR_RT_rmDup_counts_${bin}_filt_${FILTER_THRESHOLD}.tsv
-    	
-    	barcode_count=$(awk 'NR==1{print $0}' ${ODIR}/counts/${COUNT_MAT} | wc -w )
-    	
-      if [[ barcode_count -ge 150 ]]
-      then
-        echo "The barcode count of $COUNT_MAT is enough to proceed to downstream analysis : $barcode_count"
-    
-        	Rscript ${R_DOWNSTREAM} `dirname ${R_DOWNSTREAM}` ${DOWNSTREAM_ODIR}/ ${DATASET_NAME} ${PREFIX} ${ANNOT} -1 ${ODIR}/counts/${COUNT_MAT} -p ${MIN_PERCENT_COR} -log ${LOGDIR}/${DATASET_NAME}_R_downstream.log
-      else 
-        echo "The barcode count of $COUNT_MAT is not enough, skipping downstream analysis : $barcode_count"
-    
-      fi
-    done
-    
-    #For each count matrix based on bed features
-    for bed in ${BED_FEATURES}
-    do
-    	bed=$(basename $bed | sed 's/.bed//')
-    	DATASET_NAME=${PREFIX}_${bed}
-    	#Take only the latest filter to run R downstream analysis
-    	FILTER_THRESHOLD=$(echo $MIN_COUNT_PER_BARCODE_AFTER_RMDUP | sed 's/.*,//g' )
-    	COUNT_MAT=${PREFIX}_flagged_rmPCR_RT_rmDup_counts_${bed}_filt_${FILTER_THRESHOLD}.tsv
-    	
-    	barcode_count=$(awk 'NR==1{print $0}' ${ODIR}/counts/${COUNT_MAT} | wc -w )
-    	
-    	if [[ barcode_count -ge 150 ]]
-      then
-        echo "The barcode count of $COUNT_MAT is enough to proceed to downstream analysis : $barcode_count"
-    
-    	Rscript ${R_DOWNSTREAM} `dirname ${R_DOWNSTREAM}` ${DOWNSTREAM_ODIR}/ ${DATASET_NAME} ${PREFIX} ${ANNOT} -1 ${ODIR}/counts/${COUNT_MAT} -p ${MIN_PERCENT_COR} -log ${LOGDIR}/${DATASET_NAME}_R_downstream.log
-      else 
-        echo "The barcode count of $COUNT_MAT is not enough, skipping downstream analysis : $barcode_count"
-    
-      fi
-    done
-fi
-
 echo
 echo -e "Completed on $(date) ! Results are available in ${ODIR}"
 echo

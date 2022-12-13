@@ -42,47 +42,37 @@ echo "$mem"
 
 
 #CREATE CONFIG FILE : HUMAN, BEADS CURIE, IP, BED = 20k +50k
-cd ~/GitLab/ChIP-seq_single-cell_LBC_4.0/
+#cd ~/GitLab/scCutTag_10X/
 
 while IFS= read -r line
 do
+
   DATASET_NAME=$(echo "$line" | cut -d',' -f1)
   DATASET_NUMBER=$(echo "$line" | cut -d',' -f2)
   FINAL_NAME=$(echo "$line" | cut -d',' -f3)
   ASSEMBLY=$(echo "$line" | cut -d',' -f4)
   MARK=$(echo "$line" | cut -d',' -f5)
-  if [[ $MARK == "h3k27me3" && $ASSEMBLY == "hg38" ]]
-  then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_LBC_K27
-  fi
-  if [[ $MARK == "h3k4me3" && $ASSEMBLY == "hg38" ]]
-  then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_LBC_K4
-  fi
-  if [[ $MARK == "unbound" && $ASSEMBLY == "hg38" ]]
-  then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_HUMAN_LBC_UNBOUND
-  fi
-  DESIGN_TYPE=LBC
-  if [[ $MARK == "h3k27me3" && $ASSEMBLY == "mm10" ]]
-  then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_MOUSE_LBC_H3K27ME3
-  fi
-  if [[ $MARK == "h3k4me3" && $ASSEMBLY == "mm10" ]]
-  then
-  OUTPUT_CONFIG=/data/tmp/pprompsy/results/CONFIG_MOUSE_LBC_H3K4ME3
-  fi
 
-  #./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
+  if [[ $ASSEMBLY == "hg38" ]]
+  then
+  OUTPUT_CONFIG=/data/tmp/gjouault/results/CONFIG_HUMAN_scCutTag_10X_K27
+  fi
+  if [[ $ASSEMBLY == "mm10" ]]
+  then
+  OUTPUT_CONFIG=/data/tmp/gjouault/results/CONFIG_MOUSE_scCutTag_10X_H3K27ME3
+  fi
+DESIGN_TYPE=LBC
+  echo $DESIGN_TYPE
+  echo ${ASSEMBLY}
+  echo ${OUTPUT_CONFIG} 
+  echo ${MARK}
+
+  ./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
  
-  OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/${ASSEMBLY}/${FINAL_NAME}
-  DOWNSTREAM_DIR=/data/kdi_prod/project_result/1184/02.00/results/${ASSEMBLY}/
-  
-  READ1=/data/tmp/pprompsy/tmp.R1.fastq.gz
-  READ2=/data/tmp/pprompsy/tmp.R2.fastq.gz
-  touch $READ1
-  touch $READ2
-  echo "cd ~/GitLab/ChIP-seq_single-cell_LBC_4.0/; ./schip_processing.sh Counting -f ${READ1} -r ${READ2} -c ${OUTPUT_CONFIG}  -o ${OUTPUT_DIR} --name ${FINAL_NAME}" | qsub -l "nodes=1:ppn=8,mem=20gb" -N job_${FINAL_NAME}_${ASSEMBLY}_counting
+  OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/scCutTag_Greg/${ASSEMBLY}/${FINAL_NAME}
+  FASTQ_DIR=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/fastqs/${DATASET_NAME}/
+
+ #echo "cd ~/GitLab/scCutTag_10X/; ./schip_processing.sh Counting+MQC -i ${FASTQ_DIR} -c ${OUTPUT_CONFIG} -o ${OUTPUT_DIR} --name ${FINAL_NAME}" | qsub -l "nodes=1:ppn=8,mem=60gb" -N job_${FINAL_NAME}_${ASSEMBLY}
 
 done < "$sample_sheet"
 
