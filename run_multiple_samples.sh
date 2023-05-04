@@ -77,9 +77,13 @@ do
   ./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
  
   OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/scCutTag/${ASSEMBLY}/${FINAL_NAME}
-  READ1=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/${DATASET_NAME}/${DATASET_NAME}.R1.fastq.gz
-  READ2=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/${DATASET_NAME}/${DATASET_NAME}.R2.fastq.gz
-  READ3=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/${DATASET_NAME}/${DATASET_NAME}.R3.fastq.gz
+  # READ1=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/${DATASET_NAME}/${DATASET_NAME}.R1.fastq.gz
+  # READ2=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/${DATASET_NAME}/${DATASET_NAME}.R2.fastq.gz
+  # READ3=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/${DATASET_NAME}/${DATASET_NAME}.R3.fastq.gz
+  
+  READ_1=${BCL_DIR}/${NGS_NAME}.R1.fastq.gz
+  READ_2=${BCL_DIR}/${NGS_NAME}.R2.fastq.gz
+  READ_3=${BCL_DIR}/${NGS_NAME}.R3.fastq.gz
 
 echo "cd /data/users/gjouault/GitLab/scCutTag_InDrop; ./schip_processing.sh All --forward ${READ_1} --reverse ${READ_3} --index ${READ_2} -c ${OUTPUT_CONFIG}  -o ${OUTPUT_DIR} --name ${FINAL_NAME}" # | qsub -l "nodes=1:ppn=8,mem=60gb" -N job_${FINAL_NAME}_${ASSEMBLY}
 
