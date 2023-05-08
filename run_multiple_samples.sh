@@ -55,11 +55,11 @@ do
 
   if [[ $ASSEMBLY == "hg38" ]]
   then
-  OUTPUT_CONFIG=/data/tmp/gjouault/results/CONFIG_HUMAN_scCutTag_10X_K27
+  OUTPUT_CONFIG=/data/tmp/gjouault/results/CONFIG_HUMAN_scCutTag_10X_K27_${DATASET_NAME}
   fi
   if [[ $ASSEMBLY == "mm10" ]]
   then
-  OUTPUT_CONFIG=/data/tmp/gjouault/results/CONFIG_MOUSE_scCutTag_10X_H3K27ME3
+  OUTPUT_CONFIG=/data/tmp/gjouault/results/CONFIG_MOUSE_scCutTag_10X_H3K27ME3_${DATASET_NAME}
   fi
 DESIGN_TYPE=LBC
   echo $DESIGN_TYPE
