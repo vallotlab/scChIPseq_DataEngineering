@@ -71,7 +71,7 @@ DESIGN_TYPE=LBC
  
   OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/scCutTag/${ASSEMBLY}/${FINAL_NAME}
   # FASTQ_DIR=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/fastqs/${DATASET_NAME}/
-  FASTQ_DIR=/data/tmp/results/10X/${DATASET_NAME}/
+  FASTQ_DIR=/data/tmp/gjouault/fastqs/10X/${DATASET_NAME}/
   
 
  echo "cd ~/GitLab/scCutTag_10X/; ./schip_processing.sh All -i ${FASTQ_DIR} -c ${OUTPUT_CONFIG} -o ${OUTPUT_DIR} --name ${FINAL_NAME}" | qsub -l "nodes=1:ppn=8,mem=60gb" -N job_${FINAL_NAME}_${ASSEMBLY}
