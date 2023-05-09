@@ -90,7 +90,7 @@ concatenate_fastqs_from_10X()
 
         for i in $(ls ${fastq_dir} | grep R2 | grep fastq.gz)
         do
-                cmd="gzip -cd ${fastq_dir}${i} | gzip >> ${output_dir}/${sample_name}.R2.fastq.gz"
+                cmd="gzip -cd ${fastq_dir}${i} | gzip >> ${output_dir}/${sample_name}_toreverse.R2.fastq.gz"
                 exec_cmd ${cmd} >> ${log} 2>&1
         done
  
@@ -102,6 +102,44 @@ concatenate_fastqs_from_10X()
 
 	echo "Finished Concatenated Fastq" >> $log
 	echo "" >> $log
+
+}
+
+## Create FASTQs from BCLs and reverse the index
+## 
+## $1 = BCL directory
+## $2 = Output directory
+## $3 = SampleSheet (SampleSheet.csv obtained from the KDI)
+## $4 = NGS Sample Name
+## $5 Location of the reads and indexes: Y101,I8,Y69,Y51 --> First 101bp of genomic DNA (first part of read),
+##  then 8bp of AR adapter, then 69bp of barcode DNA, then 51bp of genomic DNA (second part of read)
+## $6 = log directory
+reverse_fastq_func()
+{
+
+    output_dir=$1
+    index=$2
+    final_name=$3
+
+
+    local log=$4/reverse_fastq_func.log
+    echo -e "Running Reverse FASTQ ..."
+    echo -e "Logs: $log"
+    echo
+
+    # rm -rf ${output_dir}/fastqs/
+    # 
+    # mkdir -p ${output_dir}/fastqs/
+
+    echo "Running reversing FASTQ ..." > ${log}
+    echo >> ${log}
+
+    # Reverse Index containing cell barcodes for correct mapping
+    cmd="/bioinfo/local/build/fastx_toolkit_0.0.13/fastx_reverse_complement -Q33 -i <(gzip -cd $index) -z -o $output_dir/fastqs/${final_name}.R2.fastq.gz"
+    exec_cmd ${cmd} >> ${log} 2>&1
+
+   echo
+   echo "Finished reversing fastqs !"
 
 }
 
