@@ -7,50 +7,103 @@
 
 
 ##GetConf function <- from EWOK (https://gitlab.curie.fr/data-analysis/ewok)
+
+# getConf_func(){
+# if [[ $# != "6" && $# != "7" ]]; then echo "All arguments must be filled : getConf_func TEMPLATE CONFIGS DESIGN_TYPE ASSEMBLY OUT_FILE MARK [TARGET_BED] "; echo; help_func GetConf;
+# else 	
+# 	local TEMPLATE=${1}
+# 	local CONFIGS=${2}
+# 	local DESIGN_TYPE=${3}
+# 	local ASSEMBLY=${4}
+# 	local TYPE=${5}
+# 	local OUT_FILE=${6}
+# 	local TARGET_BED=($(echo ${7} | sed 's/,/ /g'))
+# 
+# 	mkdir -p $(dirname ${OUT_FILE})
+# 
+# 	CONFIG_LINE=$(awk -v d=${DESIGN_TYPE} -v g=${ASSEMBLY} -v m=${MARK} '{FS="\t"; OFS="\t"}{if($1 == d && $2 == g && $3 == m) print NR }' ${CONFIGS})
+# 	cp ${TEMPLATE} ${OUT_FILE}
+# 
+# 	for i in $(seq 1 $(awk '{FS="\t"; OFS="\t"}{if(NR == 1) print NF}' ${CONFIGS})); do 
+# 		KEY=$(awk -v i=$i '{FS="\t"; OFS="\t"}{if(NR == 1)print "{"$i"}"}' ${CONFIGS})
+# 		VALUE=$(awk -v i=$i -v c=${CONFIG_LINE} '{FS="\t"; OFS="\t"}{if(NR == c) print $i}' ${CONFIGS})
+# 		if [[ $(echo $VALUE |grep -c " ") > 0 ]] ; then 
+# 			sed -i "s|${KEY}|\"${VALUE}\"|g" ${OUT_FILE} 
+# 		else 
+# 			sed -i "s|${KEY}|${VALUE}|g" ${OUT_FILE} 
+# 		fi 
+# 	done 
+#   sed -i 's/"//g' ${OUT_FILE}
+# 	#change script dir
+# 	if [ ! ${#TARGET_BED[@]} -eq 0 ]
+# 	then
+#   	for bed in ${TARGET_BED[@]}; do
+#   		if [[ -f $bed ]]
+#     	then
+#     	  sed -i "s|BED_FEATURES = .*|BED_FEATURES = ${bed}|g"  ${OUT_FILE}
+#       else 
+#         echo "!! !! !! !!! !!"
+#         echo "WARNING, file $bed doesn't exist !"
+#         echo "!! !! !! !!! !!"
+#         
+#       fi
+#     done
+#   fi
+# 	echo -e "COMMENT: Configuration file is ${OUT_FILE} \n"
+# fi 
+# }
+
 getConf_func(){
-if [[ $# != "6" && $# != "7" ]]; then echo "All arguments must be filled : getConf_func TEMPLATE CONFIGS DESIGN_TYPE ASSEMBLY OUT_FILE MARK [TARGET_BED] "; echo; help_func GetConf;
-else 	
-	local TEMPLATE=${1}
-	local CONFIGS=${2}
-	local DESIGN_TYPE=${3}
-	local ASSEMBLY=${4}
-	local TYPE=${5}
-	local OUT_FILE=${6}
-	local TARGET_BED=($(echo ${7} | sed 's/,/ /g'))
+	if [[ $# != "6" && $# != "7" ]]; then 
+		echo "All arguments must be filled : getConf_func TEMPLATE CONFIGS DESIGN_TYPE ASSEMBLY OUT_FILE MARK [TARGET_BED] "; 
+		echo; 
+		help_func GetConf;
+	else 	
+		local TEMPLATE=${1}
+		local CONFIGS=${2}
+		local DESIGN_TYPE=${3}
+		local ASSEMBLY=${4}
+		local TYPE=${5}
+		local OUT_FILE=${6}
+		local TARGET_BED=($(echo ${7} | sed 's/,/ /g'))
 
-	mkdir -p $(dirname ${OUT_FILE})
+		mkdir -p $(dirname ${OUT_FILE})
 
-	CONFIG_LINE=$(awk -v d=${DESIGN_TYPE} -v g=${ASSEMBLY} -v m=${MARK} '{FS="\t"; OFS="\t"}{if($1 == d && $2 == g && $3 == m) print NR }' ${CONFIGS})
-	cp ${TEMPLATE} ${OUT_FILE}
+		CONFIG_LINE=$(awk -v d=${DESIGN_TYPE} -v g=${ASSEMBLY} -v m=${MARK} '{FS="\t"; OFS="\t"}{if($1 == d && $2 == g && $3 == m) print NR }' ${CONFIGS})
+		echo "CONFIG_LINE: ${CONFIG_LINE}"
+		cp ${TEMPLATE} ${OUT_FILE}
 
-	for i in $(seq 1 $(awk '{FS="\t"; OFS="\t"}{if(NR == 1) print NF}' ${CONFIGS})); do 
-		KEY=$(awk -v i=$i '{FS="\t"; OFS="\t"}{if(NR == 1)print "{"$i"}"}' ${CONFIGS})
-		VALUE=$(awk -v i=$i -v c=${CONFIG_LINE} '{FS="\t"; OFS="\t"}{if(NR == c) print $i}' ${CONFIGS})
-		if [[ $(echo $VALUE |grep -c " ") > 0 ]] ; then 
-			sed -i "s|${KEY}|\"${VALUE}\"|g" ${OUT_FILE} 
-		else 
-			sed -i "s|${KEY}|${VALUE}|g" ${OUT_FILE} 
-		fi 
-	done 
-  sed -i 's/"//g' ${OUT_FILE}
-	#change script dir
-	if [ ! ${#TARGET_BED[@]} -eq 0 ]
-	then
-  	for bed in ${TARGET_BED[@]}; do
-  		if [[ -f $bed ]]
-    	then
-    	  sed -i "s|BED_FEATURES = .*|BED_FEATURES = ${bed}|g"  ${OUT_FILE}
-      else 
-        echo "!! !! !! !!! !!"
-        echo "WARNING, file $bed doesn't exist !"
-        echo "!! !! !! !!! !!"
-        
-      fi
-    done
-  fi
-	echo -e "COMMENT: Configuration file is ${OUT_FILE} \n"
-fi 
+		for i in $(seq 1 $(awk '{FS="\t"; OFS="\t"}{if(NR == 1) print NF}' ${CONFIGS})); do 
+			KEY=$(awk -v i=$i '{FS="\t"; OFS="\t"}{if(NR == 1)print "{"$i"}"}' ${CONFIGS})
+			VALUE=$(awk -v i=$i -v c=${CONFIG_LINE} '{FS="\t"; OFS="\t"}{if(NR == c) print $i}' ${CONFIGS})
+			echo "KEY: ${KEY}, VALUE: ${VALUE}"
+			if [[ $(echo $VALUE |grep -c " ") > 0 ]] ; then 
+				sed -i "s|${KEY}|\"${VALUE}\"|g" ${OUT_FILE} 
+			else 
+				sed -i "s|${KEY}|${VALUE}|g" ${OUT_FILE} 
+			fi 
+		done 
+		sed -i 's/"//g' ${OUT_FILE}
+		echo "OUT_FILE contents: "
+		cat ${OUT_FILE}
+		#change script dir
+		if [ ! ${#TARGET_BED[@]} -eq 0 ]
+		then
+			for bed in ${TARGET_BED[@]}; do
+				if [[ -f $bed ]]
+				then
+					sed -i "s|BED_FEATURES = .*|BED_FEATURES = ${bed}|g"  ${OUT_FILE}
+				else 
+					echo "!! !! !! !!! !!"
+					echo "WARNING, file $bed doesn't exist !"
+					echo "!! !! !! !!! !!"
+				fi
+			done
+		fi
+		echo -e "COMMENT: Configuration file is ${OUT_FILE} \n"
+	fi 
 }
+
 
 
 ## Create FASTQs from BCLs and reverse the index
@@ -355,9 +408,12 @@ prefix=$3
   if [[ ${BARCODE_LENGTH} -eq 60 ]]
   	then
   	echo -e "Short barcode :LBC"
-      start_index_1=6
-  	  start_index_2=26
-  	  start_index_3=46
+  #     start_index_1=6
+  # 	  start_index_2=26
+  # 	  start_index_3=46
+      start_index_1=5
+  	  start_index_2=25
+  	  start_index_3=45
   	  size_index=16
          else
   	echo -e "Long barcode : Hifibio "
