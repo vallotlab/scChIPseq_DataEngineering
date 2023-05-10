@@ -90,7 +90,7 @@ concatenate_fastqs_from_10X()
 
         for i in $(ls ${fastq_dir} | grep R2 | grep fastq.gz)
         do
-                cmd="gzip -cd ${fastq_dir}${i} | gzip >> ${output_dir}/${sample_name}_toreverse.R2.fastq.gz"
+                cmd="gzip -cd ${fastq_dir}${i} | gzip >> ${output_dir}/${sample_name}.R2.fastq.gz"
                 exec_cmd ${cmd} >> ${log} 2>&1
         done
  

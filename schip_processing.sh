@@ -274,9 +274,9 @@ echo "Running pipeline for sample $NAME"
 
       echo -e "Concatenating Input Fastqs from 10X... \n"
       concatenate_fastqs_from_10X ${FASTQ_DIR} ${ODIR}/fastqs ${PREFIX} ${LOGDIR}
-      INDEX="${ODIR}/fastqs/${PREFIX}_toreverse.R2.fastq.gz"
-       echo -e "Reversing the index fastq... \n"
-        reverse_fastq_func ${ODIR} ${INDEX} ${PREFIX} ${LOGDIR}
+      # INDEX="${ODIR}/fastqs/${PREFIX}_toreverse.R2.fastq.gz"
+      #  echo -e "Reversing the index fastq... \n"
+      #   reverse_fastq_func ${ODIR} ${INDEX} ${PREFIX} ${LOGDIR}
     fi
 
    INDEX="${ODIR}/fastqs/${PREFIX}.R2.fastq.gz"
