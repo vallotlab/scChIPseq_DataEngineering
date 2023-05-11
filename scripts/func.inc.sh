@@ -408,12 +408,12 @@ prefix=$3
   if [[ ${BARCODE_LENGTH} -eq 60 ]]
   	then
   	echo -e "Short barcode :LBC"
-  #     start_index_1=6
-  # 	  start_index_2=26
-  # 	  start_index_3=46
-      start_index_1=5
-  	  start_index_2=25
-  	  start_index_3=45
+      start_index_1=6
+  	  start_index_2=26
+  	  start_index_3=46
+  #     start_index_1=5
+  # 	  start_index_2=25
+  # 	  start_index_3=45
   	  size_index=16
          else
   	echo -e "Long barcode : Hifibio "
