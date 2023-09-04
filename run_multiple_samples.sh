@@ -83,15 +83,15 @@ do
   # READ3=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/${DATASET_NAME}/${DATASET_NAME}.R3.fastq.gz
   
 
-  READ_1=${BCL_DIR}/${NGS_NAME}R1_001.fastq.gz
-  READ_2=${BCL_DIR}/${NGS_NAME}R2_001.fastq.gz
-  READ_3=${BCL_DIR}/${NGS_NAME}R3_001.fastq.gz
+  #READ_1=${BCL_DIR}/${NGS_NAME}R1_001.fastq.gz
+  #READ_2=${BCL_DIR}/${NGS_NAME}R2_001.fastq.gz
+  #READ_3=${BCL_DIR}/${NGS_NAME}R3_001.fastq.gz
 
-  # READ_1=${BCL_DIR}/${NGS_NAME}.R1.fastq.gz
-  # READ_2=${BCL_DIR}/${NGS_NAME}.R2.fastq.gz
-  # READ_3=${BCL_DIR}/${NGS_NAME}.R3.fastq.gz
+  READ_1=${BCL_DIR}/${NGS_NAME}.R1.fastq.gz
+  READ_2=${BCL_DIR}/${NGS_NAME}.R2.fastq.gz
+  READ_3=${BCL_DIR}/${NGS_NAME}.R3.fastq.gz
 
-echo "cd /data/users/gjouault/GitLab/scCutTag_InDrop;./schip_processing.sh All --forward ${READ_1} --reverse ${READ_3} --index ${READ_2} --conf ${OUTPUT_CONFIG} --output ${OUTPUT_DIR} --name ${FINAL_NAME}"| qsub -l nodes=1:ppn=10,mem=60gb -N job_${FINAL_NAME}_${ASSEMBLY}
+echo "cd /data/users/gjouault/GitLab/scCutTag_InDrop;./schip_processing.sh All --forward ${READ_1} --reverse ${READ_3} --index ${READ_2} --conf ${OUTPUT_CONFIG} --output ${OUTPUT_DIR} --name ${FINAL_NAME}"| qsub -l nodes=1:ppn=15,mem=100gb,walltime=164:00:00 -N job_${FINAL_NAME}_${ASSEMBLY}
 
 
 done < "$sample_sheet"
