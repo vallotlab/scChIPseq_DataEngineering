@@ -70,8 +70,8 @@ DESIGN_TYPE=LBC
  ./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
  
   OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/scCutTag/${ASSEMBLY}/${FINAL_NAME}
-  # FASTQ_DIR=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/fastqs/${DATASET_NAME}/
-  FASTQ_DIR=/data/tmp/gjouault/10X/fastq/${DATASET_NAME}/
+  FASTQ_DIR=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/fastqs/${DATASET_NAME}/
+  # FASTQ_DIR=/data/tmp/gjouault/10X/fastq/${DATASET_NAME}/
   
 
  echo "cd ~/GitLab/scCutTag_10X/; ./schip_processing.sh All -i ${FASTQ_DIR} -c ${OUTPUT_CONFIG} -o ${OUTPUT_DIR} --name ${FINAL_NAME}" | qsub -l "nodes=1:ppn=8,mem=60gb" -N job_${FINAL_NAME}_${ASSEMBLY}
