@@ -132,6 +132,7 @@ for arg in "$@"; do
   shift
   case "$arg" in
       "--fastqDir") set -- "$@" "-i" ;;
+      "--datasetName") set -- "$@" "-d" ;;
       "--output") set -- "$@" "-o" ;;
       "--conf")   set -- "$@" "-c" ;;
       "--name")   set -- "$@" "-n" ;;
@@ -158,10 +159,11 @@ if [[ ! $COMMAND =~ "Fastq" && ! $COMMAND =~ "Barcoding" && ! $COMMAND =~ "Trimm
 if [[ $COMMAND =~ "Fastq" || $COMMAND =~ "Barcoding" || $COMMAND =~ "Trimming"  ||   $COMMAND =~ "Mapping"  ||  $COMMAND =~ "Filtering"  ||  $COMMAND =~ "Coverage" ||  $COMMAND =~ "Counting"  ||  $COMMAND =~ "MQC" ||  $COMMAND =~ "R_analysis" ]]
 then
   shift
-  while getopts "i:o:c:s:n:u:dvh" OPT
+  while getopts "i:d:o:c:s:n:u:dvh" OPT
   do
       case $OPT in
           i) FASTQ_DIR=$OPTARG;;
+          d) DATASET_NAME=$OPTARG;;
           o) ODIR=$OPTARG;;
           c) CONF=$OPTARG;;
           s) DOWNSTREAM_ODIR=$OPTARG;;
@@ -269,7 +271,18 @@ fi
 
 echo "Running pipeline for sample $NAME"
 
-    ## 0- Concatenating Input Fastqs from 10X... and reverse complement the Index read
+    ## 0 - Create a directory per sample in the kdi and copy the corresponding fastq in it 
+    if [[  -n "${TO_RUN[Fastq]}" ]]; then
+
+    mkdir -p ${ODIR}
+    cd ${FASTQ_DIR}
+    cp -L $(ls | grep ${DATASET_NAME}) ${ODIR}
+    FASTQ_DIR=${ODIR}
+    
+    
+    fi
+
+    ## 0bis- Concatenating Input Fastqs from 10X... and reverse complement the Index read
     if [[  -n "${TO_RUN[Fastq]}" ]]; then
 
       echo -e "Concatenating Input Fastqs from 10X... \n"
