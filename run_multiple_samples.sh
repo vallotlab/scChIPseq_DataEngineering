@@ -70,8 +70,8 @@ DESIGN_TYPE=LBC
  ./schip_processing.sh GetConf --template  CONFIG_TEMPLATE --configFile species_design_configs.csv --designType ${DESIGN_TYPE} --genomeAssembly ${ASSEMBLY} --outputConfig ${OUTPUT_CONFIG} --mark ${MARK}
  
   OUTPUT_DIR=/data/kdi_prod/project_result/1184/02.00/results/scCutTag/${ASSEMBLY}/${FINAL_NAME}
-  FASTQ_DIR=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/FastqForAllSamples/ 
-  # FASTQ_DIR=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/fastqs/${DATASET_NAME}/
+  # FASTQ_DIR=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/FastqForAllSamples/ 
+  FASTQ_DIR=/data/kdi_prod/dataset/${DATASET_NUMBER}/export/user/fastqs/${DATASET_NAME}/
   # FASTQ_DIR=/data/tmp/gjouault/10X/fastq/${DATASET_NAME}/
   
 
